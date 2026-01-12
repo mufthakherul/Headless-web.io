@@ -7,6 +7,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { URL } = require('url');
 const logger = require('./logger');
+const { USER_AGENT, REQUEST_TIMEOUT, MAX_REDIRECTS } = require('./config');
 
 /**
  * Fetch URL and rewrite content to proxy through our server
@@ -18,15 +19,15 @@ async function fetchAndRewrite(targetUrl, sessionId, baseProxyPath = '/proxy') {
     // Fetch the target URL
     const response = await axios.get(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': USER_AGENT,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
         'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1'
       },
-      timeout: 15000,
-      maxRedirects: 5,
+      timeout: REQUEST_TIMEOUT,
+      maxRedirects: MAX_REDIRECTS,
       validateStatus: (status) => status < 500 // Accept 4xx responses
     });
 
@@ -118,9 +119,10 @@ async function fetchAndRewrite(targetUrl, sessionId, baseProxyPath = '/proxy') {
       }
     });
 
-    // Add base tag to help with relative URLs
+    // Add base tag to help with relative URLs (escaped for security)
     if ($('base').length === 0) {
-      $('head').prepend(`<base href="${parsedUrl.origin}${parsedUrl.pathname}">`);
+      const baseHref = escapeHtml(parsedUrl.origin + parsedUrl.pathname);
+      $('head').prepend(`<base href="${baseHref}">`);
     }
 
     // Inject warning banner

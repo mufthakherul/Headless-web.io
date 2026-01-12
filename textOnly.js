@@ -6,6 +6,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const logger = require('./logger');
+const { USER_AGENT, REQUEST_TIMEOUT, MAX_LINKS_TO_SHOW } = require('./config');
 
 /**
  * Convert page to text-only format
@@ -16,9 +17,9 @@ async function convertToTextOnly(targetUrl) {
 
     const response = await axios.get(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': USER_AGENT
       },
-      timeout: 15000
+      timeout: REQUEST_TIMEOUT
     });
 
     const $ = cheerio.load(response.data);
@@ -176,13 +177,13 @@ function generateTextOnlyHTML(data) {
         <h2>Links on this page (${data.links.length})</h2>
         <ul>
 `;
-    // Limit to first 100 links to avoid overwhelming
-    const linksToShow = data.links.slice(0, 100);
+    // Limit to first MAX_LINKS_TO_SHOW links to avoid overwhelming
+    const linksToShow = data.links.slice(0, MAX_LINKS_TO_SHOW);
     for (const link of linksToShow) {
       html += `            <li><a href="${escapeHtml(link.url)}">${escapeHtml(link.text)}</a></li>\n`;
     }
-    if (data.links.length > 100) {
-      html += `            <li><em>... and ${data.links.length - 100} more links</em></li>\n`;
+    if (data.links.length > MAX_LINKS_TO_SHOW) {
+      html += `            <li><em>... and ${data.links.length - MAX_LINKS_TO_SHOW} more links</em></li>\n`;
     }
     html += `        </ul>
     </div>
