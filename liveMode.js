@@ -95,15 +95,26 @@ class LiveModeManager {
   async captureFrame(sessionId, format = 'png') {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error('Session not found');
+      throw new Error(`Session not found: ${sessionId}`);
     }
 
     try {
       session.lastAccessed = Date.now();
+      
+      // Check if page is still valid
+      if (!session.page || session.page.isClosed()) {
+        throw new Error('Page has been closed');
+      }
+      
       const screenshot = await session.page.screenshot({
         type: format,
-        fullPage: false
+        fullPage: false,
+        timeout: 5000
       });
+
+      if (!screenshot || screenshot.length === 0) {
+        throw new Error('Screenshot is empty');
+      }
 
       return {
         image: screenshot,
@@ -111,7 +122,12 @@ class LiveModeManager {
         timestamp: Date.now()
       };
     } catch (error) {
-      logger.error('Failed to capture frame', { sessionId, error: error.message });
+      logger.error('Failed to capture frame', { 
+        sessionId, 
+        error: error.message,
+        pageExists: session.page !== undefined,
+        pageClosed: session.page ? session.page.isClosed() : 'N/A'
+      });
       throw error;
     }
   }

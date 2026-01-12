@@ -168,6 +168,9 @@ class WebSocketManager {
 
   startFrameStreaming(sessionId) {
     // Stream frames at 2 FPS (every 500ms)
+    let errorCount = 0;
+    const maxErrors = 5;
+    
     const intervalId = setInterval(async () => {
       const ws = this.clients.get(sessionId);
       
@@ -176,7 +179,23 @@ class WebSocketManager {
         return;
       }
 
-      await this.sendFrame(sessionId);
+      try {
+        await this.sendFrame(sessionId);
+        errorCount = 0; // Reset on success
+      } catch (error) {
+        errorCount++;
+        logger.error('Frame streaming error', { sessionId, errorCount, error: error.message });
+        
+        // Stop streaming after too many errors
+        if (errorCount >= maxErrors) {
+          logger.error('Stopping frame streaming due to repeated errors', { sessionId });
+          clearInterval(intervalId);
+          this.sendMessage(ws, {
+            type: 'error',
+            message: 'Frame streaming stopped due to errors'
+          });
+        }
+      }
     }, 500);
 
     // Store interval ID for cleanup

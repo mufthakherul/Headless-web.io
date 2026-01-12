@@ -440,6 +440,32 @@ app.post('/live/input', async (req, res) => {
   }
 });
 
+// Live mode: Session diagnostic endpoint
+app.get('/live/session/:sid', (req, res) => {
+  const { sid } = req.params;
+  const sessionExists = sessions.has(sid);
+  const liveStats = liveManager.getStats();
+  
+  try {
+    const allLiveSessions = Array.from(liveManager.sessions.entries()).map(([id, sess]) => ({
+      sessionId: id,
+      url: sess.url,
+      createdAt: sess.createdAt,
+      lastAccessed: sess.lastAccessed,
+      pageClosed: sess.page ? sess.page.isClosed() : 'N/A'
+    }));
+
+    res.json({
+      requestedSession: sid,
+      sessionExists,
+      liveStats,
+      allLiveSessions
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Snapshot mode: Create snapshot (with SSRF protection)
 app.post('/snapshot/create', ssrfProtectionMiddleware, async (req, res) => {
   // Check if Playwright is disabled

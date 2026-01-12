@@ -55,7 +55,7 @@ class PDFGenerator {
 
       // Extract article content
       const article = await extractContent(url);
-      
+
       if (!article) {
         throw new Error('Failed to extract article content');
       }
@@ -66,9 +66,9 @@ class PDFGenerator {
       // Create PDF
       const context = await browser.newContext();
       const page = await context.newPage();
-      
+
       await page.setContent(html, { waitUntil: 'networkidle' });
-      
+
       const pdf = await page.pdf({
         format: options.format || 'A4',
         printBackground: true,
@@ -86,10 +86,10 @@ class PDFGenerator {
       await context.close();
       await browser.close();
 
-      logger.info('PDF generated from URL', { 
-        url, 
+      logger.info('PDF generated from URL', {
+        url,
         title: article.title,
-        size: pdf.length 
+        size: pdf.length
       });
 
       return pdf;
