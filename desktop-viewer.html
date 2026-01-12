@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desktop Mode Viewer - Headless-web</title>
+    <meta name="description" content="Desktop mode viewer with enhanced browser capabilities">
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg-main: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #1f2937;
+            --bg-secondary: #111827;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --border: #374151;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .toolbar {
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            box-shadow: 0 2px 4px var(--shadow);
+            flex-wrap: wrap;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding-right: 10px;
+            border-right: 1px solid var(--border);
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-danger {
+            background: var(--error);
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .input-group input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .viewport {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: #000;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            background: #1a1a1a;
+            position: relative;
+        }
+
+        .canvas-container canvas {
+            max-width: 100%;
+            max-height: 100%;
+            border: 1px solid var(--border);
+            display: block;
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .sidebar {
+            width: 300px;
+            background: var(--bg-main);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .sidebar-section {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-section h4 {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--primary);
+            font-family: 'Courier New', monospace;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+
+        .toast {
+            padding: 14px 18px;
+            border-radius: 8px;
+            border-left: 4px solid;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            box-shadow: 0 4px 12px var(--shadow);
+            animation: slideInRight 0.3s ease-out;
+            min-width: 250px;
+        }
+
+        .toast-success {
+            border-left-color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .toast-error {
+            border-left-color: var(--error);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .toast-info {
+            border-left-color: var(--primary);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .theme-toggle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--border);
+        }
+
+        .status-bar {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-left {
+            display: flex;
+            gap: 15px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .indicator-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .indicator-dot.inactive {
+            background: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .toolbar {
+                flex-wrap: wrap;
+            }
+
+            .toolbar-group {
+                border-right: none;
+                padding-right: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <button class="btn" onclick="captureScreen();" title="Ctrl+S">
+                📸 Capture
+            </button>
+            <button class="btn" onclick="refreshPage();" title="F5">
+                🔄 Refresh
+            </button>
+            <button class="btn btn-secondary" onclick="toggleSidebar();">
+                📊 Stats
+            </button>
+        </div>
+
+        <div class="toolbar-group">
+            <label style="font-size: 12px; color: var(--text-secondary);">Viewport:</label>
+            <div class="input-group">
+                <input type="number" id="viewportWidth" value="1920" min="320" max="3840" placeholder="Width">
+                <span style="color: var(--text-secondary);">×</span>
+                <input type="number" id="viewportHeight" value="1080" min="240" max="2160" placeholder="Height">
+                <button class="btn" onclick="resizeViewport();" title="Ctrl+R">
+                    ↔️ Resize
+                </button>
+            </div>
+        </div>
+
+        <div class="toolbar-group" style="margin-left: auto;">
+            <button class="btn btn-secondary" id="themeToggle" onclick="toggleTheme();">
+                🌙
+            </button>
+            <button class="btn btn-danger" onclick="closeSession();" title="Ctrl+W">
+                ✕ Close
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="viewport">
+            <div class="canvas-container" id="canvasContainer">
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner"></div>
+                    <p>Loading page...</p>
+                </div>
+                <canvas id="pageCanvas"></canvas>
+            </div>
+
+            <div class="status-bar">
+                <div class="status-left">
+                    <div class="status-indicator">
+                        <div class="indicator-dot" id="statusDot"></div>
+                        <span id="statusText">Ready</span>
+                    </div>
+                    <div id="urlDisplay"
+                        style="max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                </div>
+                <div id="renderTime">Render: 0ms</div>
+            </div>
+        </div>
+
+        <div class="sidebar" id="sidebar" style="display: none;">
+            <div class="sidebar-header">Session Info</div>
+
+            <div class="sidebar-section">
+                <h4>Metrics</h4>
+                <div class="stat-item">
+                    <span class="stat-label">Captures</span>
+                    <span class="stat-value" id="captureCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Avg Render</span>
+                    <span class="stat-value" id="avgRender">0ms</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Data Captured</span>
+                    <span class="stat-value" id="dataCaptured">0 MB</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Duration</span>
+                    <span class="stat-value" id="sessionDuration">0s</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h4>Page Metrics</h4>
+                <div class="stat-item">
+                    <span class="stat-label">Load Time</span>
+                    <span class="stat-value" id="pageLoadTime">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Resources</span>
+                    <span class="stat-value" id="resourceCount">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Memory</span>
+                    <span class="stat-value" id="memoryUsage">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // Get session ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const desktopSessionId = urlParams.get('sid');
+
+        if (!desktopSessionId) {
+            alert('No session ID provided');
+            window.location.href = '/';
+        }
+
+        let autoRefreshInterval;
+        let sidebarVisible = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            updateTheme();
+            startAutoRefresh();
+            updateStats();
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.code === 'KeyS') {
+                    e.preventDefault();
+                    captureScreen();
+                } else if (e.code === 'F5') {
+                    e.preventDefault();
+                    refreshPage();
+                } else if (e.ctrlKey && e.code === 'KeyR') {
+                    e.preventDefault();
+                    // Resize with default 1920x1080
+                    resizeViewport();
+                } else if (e.ctrlKey && e.code === 'KeyW') {
+                    e.preventDefault();
+                    closeSession();
+                }
+            });
+
+            Toast.info('🖥️ Desktop Mode Ready - Use Ctrl+S to capture');
+        });
+
+        async function captureScreen() {
+            try {
+                setLoading(true);
+                const response = await fetch(`/desktop/capture?sid=${desktopSessionId}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to capture screen');
+                }
+
+                const blob = await response.blob();
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('pageCanvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    const renderTime = response.headers.get('X-Render-Time') || '0';
+                    document.getElementById('renderTime').textContent = `Render: ${renderTime}`;
+
+                    setLoading(false);
+                    Toast.success('📸 Screenshot captured');
+                };
+
+                img.src = URL.createObjectURL(blob);
+            } catch (error) {
+                setLoading(false);
+                Toast.error('Error: ' + error.message);
+            }
+        }
+
+        async function refreshPage() {
+            try {
+                setLoading(true);
+                await captureScreen();
+                setLoading(false);
+            } catch (error) {
+                Toast.error('Failed to refresh: ' + error.message);
+            }
+        }
+
+        async function resizeViewport() {
+            try {
+                const width = parseInt(document.getElementById('viewportWidth').value);
+                const height = parseInt(document.getElementById('viewportHeight').value);
+
+                if (!width || !height) {
+                    Toast.error('Invalid dimensions');
+                    return;
+                }
+
+                const response = await fetch('/desktop/resize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sid: desktopSessionId,
+                        width,
+                        height
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message);
+                }
+
+                Toast.success(`✅ Viewport resized to ${width}x${height}`);
+                await captureScreen();
+            } catch (error) {
+                Toast.error('Error: ' + error.message);
+            }
+        }
+
+        async function closeSession() {
+            if (!confirm('Close this desktop session?')) return;
+
+            try {
+                await fetch('/desktop/close', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sid: desktopSessionId })
+                });
+
+                Toast.success('Session closed');
+                setTimeout(() => window.close(), 1000);
+            } catch (error) {
+                Toast.error('Error closing session: ' + error.message);
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const response = await fetch(`/desktop/stats?sid=${desktopSessionId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data;
+                    document.getElementById('captureCount').textContent = stats.metrics.captureCount;
+                    document.getElementById('avgRender').textContent = stats.metrics.averageRenderTime + 'ms';
+                    document.getElementById('dataCaptured').textContent =
+                        (stats.metrics.totalDataCaptured / 1024 / 1024).toFixed(2) + ' MB';
+                    document.getElementById('sessionDuration').textContent =
+                        Math.round(stats.duration / 1000) + 's';
+
+                    document.getElementById('urlDisplay').textContent = stats.url;
+                }
+            } catch (error) {
+                console.warn('Failed to update stats:', error);
+            }
+        }
+
+        function startAutoRefresh() {
+            autoRefreshInterval = setInterval(updateStats, 3000);
+        }
+
+        function toggleSidebar() {
+            sidebarVisible = !sidebarVisible;
+            document.getElementById('sidebar').style.display = sidebarVisible ? 'flex' : 'none';
+            if (sidebarVisible) {
+                updateStats();
+            }
+        }
+
+        function setLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'flex' : 'none';
+            document.getElementById('statusDot').className = 'indicator-dot' + (show ? ' inactive' : '');
+            document.getElementById('statusText').textContent = show ? 'Loading...' : 'Ready';
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            updateTheme();
+            localStorage.setItem('theme', newTheme);
+        }
+
+        function updateTheme() {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+
+        const Toast = {
+            show(message, type = 'info', duration = 4000) {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.textContent = message;
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            },
+            success(msg) { this.show(msg, 'success'); },
+            error(msg) { this.show(msg, 'error', 5000); },
+            info(msg) { this.show(msg, 'info'); }
+        };
+
+        window.addEventListener('beforeunload', () => {
+            clearInterval(autoRefreshInterval);
+        });
+    </script>
+</body>
+
+</html>

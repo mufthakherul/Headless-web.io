@@ -156,8 +156,15 @@ These are example endpoints you can implement (adjust freely):
 - `GET /snapshot/screenshot?sid=...` — Get snapshot screenshot
 - `GET /snapshot/list` — List all snapshots
 
-### Desktop Mode (Requires Setup)
-- `GET /desktop?sid=...` — Open Guacamole/noVNC session
+### Desktop Mode (NOW IMPLEMENTED!)
+- `POST /desktop/start` — Start desktop mode session
+- `GET /desktop/capture` — Full page JPEG screenshot
+- `GET /desktop/content` — Get page HTML content
+- `POST /desktop/resize` — Resize viewport (320-3840 x 240-2160)
+- `POST /desktop/execute` — Execute JavaScript in page
+- `GET /desktop/metrics` — Get page performance metrics
+- `GET /desktop/stats` — Session statistics
+- `POST /desktop/close` — Close session
 
 ---
 
@@ -271,7 +278,7 @@ export REDIS_PORT=6379
 4. **📝 Text-only** - Minimal bandwidth text view
 5. **📸 Snapshot** - Capture and replay with HAR archive
 6. **🎮 Live (Interactive)** - Real-time browser via Playwright + WebSocket
-7. **🖥️ Full Desktop** - Remote desktop browser (requires setup)
+7. **🖥️ Desktop Mode** - Enhanced browser with full page captures, viewport resizing, JS execution
 
 ### 🔥 Advanced Features
 
@@ -281,7 +288,17 @@ export REDIS_PORT=6379
   - WebSocket bidirectional communication
   - Session isolation and automatic cleanup
 
-- **📸 Snapshot Mode**: Full page capture with offline viewing
+- **�️ Desktop Mode**: Enhanced browser with advanced features
+  - Full page JPEG captures with render time tracking
+  - Viewport resizing (320-3840 x 240-2160 px)
+  - JavaScript execution in page context
+  - Performance metrics and analytics
+  - Extended session timeouts (2 hours)
+  - Real-time statistics sidebar
+  - Dark/light theme toggle
+  - Keyboard shortcuts for quick actions
+
+- **�📸 Snapshot Mode**: Full page capture with offline viewing
   - HTML content + resource metadata
   - Screenshot generation
   - HAR-like archive format
@@ -446,15 +463,28 @@ export REDIS_PORT=6379
 - ✅ Statistics tracking
 - ✅ Configurable via environment variables
 
+**🖥️ Desktop Mode (NEW - v2.1):**
+- ✅ Desktop mode manager with extended features
+- ✅ Full page JPEG captures
+- ✅ Viewport resizing (320-3840 x 240-2160)
+- ✅ JavaScript execution in page context
+- ✅ Performance metrics tracking
+- ✅ Extended session timeouts (2 hours)
+- ✅ Real-time statistics and monitoring
+- ✅ Modern desktop-like UI with toolbar
+- ✅ Dark/light theme support
+- ✅ Keyboard shortcuts (Ctrl+S, Ctrl+R, Ctrl+W, F5)
+- ✅ Automatic render time tracking
+- ✅ Memory and bandwidth usage monitoring
+
 ### 🚧 Next Steps (Future Enhancements)
 
-**Phase 1: Desktop Mode (Requires External Setup)**
-- [ ] Docker/Podman container setup
-- [ ] VNC server configuration
-- [ ] noVNC client integration
-- [ ] Guacamole alternative setup
-- [ ] Container orchestration
-- [ ] Resource limits per container
+**Phase 1: Desktop Mode Enhancements**
+- [ ] VNC/RDP streaming via noVNC
+- [ ] Full GUI desktop environment
+- [ ] Download management
+- [ ] HAR archive export
+- [ ] Screenshot history and comparison
 
 **Phase 2: Advanced Optimizations**
 - [ ] Image transcoding/compression for Fast+ mode
