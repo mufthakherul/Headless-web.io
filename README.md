@@ -497,3 +497,37 @@ export REDIS_PORT=6379
 - **Recommended**: 4GB RAM, 4 CPU cores
 - **Live Mode**: Additional 100-200MB RAM per session
 - **Playwright**: ~200MB disk space for browser binaries
+
+---
+
+## Deployment
+
+### Quick Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mufthakherul/Headless-web.io)
+
+**Note:** Vercel deployment has limitations for WebSocket and Playwright features. See [DEPLOYMENT.md](DEPLOYMENT.md) for details.
+
+### Alternative Deployment Options
+
+- **Docker**: `docker build -t headless-web . && docker run -p 3000:3000 headless-web`
+- **Traditional Server**: See [DEPLOYMENT.md](DEPLOYMENT.md) for PM2, systemd, and cloud deployment guides
+- **AWS/GCP/Azure**: Full feature support with proper VM configuration
+
+For comprehensive deployment instructions, including Vercel, Docker, PM2, and cloud platforms, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+---
+
+## API Documentation
+
+Once deployed, visit `/api/docs` for comprehensive API documentation with examples for all endpoints.
+
+Key endpoints:
+- `GET /` - Main UI
+- `GET /api/docs` - API documentation
+- `GET /health` - Health check
+- `GET /stats` - Server statistics
+- `GET /metrics` - Request metrics
+- `GET /go?url=<url>&mode=<mode>` - Start session
+
+---
