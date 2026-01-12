@@ -103,8 +103,8 @@ async function syncData() {
 self.addEventListener('push', event => {
   const options = {
     body: event.data?.text() || 'New notification',
-    icon: '/manifest.json',
-    badge: '/manifest.json',
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
     vibrate: [200, 100, 200]
   };
 

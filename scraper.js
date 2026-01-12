@@ -205,7 +205,7 @@ class ScraperManager {
                     'low': '360p'
                 };
                 downloadOptions = { 
-                    quality: qualityMap[quality] || 'highest',
+                    quality: qualityMap[quality] || 'highestvideo',
                     filter: 'videoandaudio'
                 };
             }

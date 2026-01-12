@@ -771,8 +771,8 @@
             window.location.href = '/login.html';
         }
 
-        // Handle Enter key
-        document.addEventListener('keydown', (e) => {
+        // Handle Enter key - only when message input is focused
+        document.getElementById('message-input').addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
