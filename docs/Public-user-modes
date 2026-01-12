@@ -1,0 +1,119 @@
+# Public User Modes (7)
+
+These are the **user-facing modes** shown in the UI. Users choose one depending on their needs; internally, each mode may use one or more internal techniques.
+
+## Mode A — Fast (Proxy)
+**Goal:** Fastest and cheapest browsing through the service.
+
+**What the user gets**
+- Normal page loading through the service
+- Best-effort compatibility
+
+**Internally uses**
+- Internal Mode 2 (server-side fetch & rewrite)
+- May lightly apply Internal Mode 6 (basic optimization)
+
+**Best for**
+- Simple websites, static content, basic pages
+
+**Known limitations**
+- Some modern sites may break (CSP, heavy JS apps, bot protections)
+
+---
+
+## Mode B — Fast+ (Proxy Optimized)
+**Goal:** Same as Fast, but optimized for slower devices/networks and improved success rate.
+
+**Internally uses**
+- Internal Mode 2 (proxy rewrite)
+- Internal Mode 6 (transcoding/optimization)
+- May leverage Internal Mode 9 (existing proxy engine) for reliability
+
+**Best for**
+- Heavier pages where speed/bandwidth matters
+
+**Known limitations**
+- Aggressive optimization may occasionally break page layout/functionality
+
+---
+
+## Mode C — Reader (Article View)
+**Goal:** Extract and show the main readable content.
+
+**Internally uses**
+- Internal Mode 4 (reader/content extraction)
+
+**Best for**
+- News, blogs, documentation, guides
+
+**Known limitations**
+- Not suitable for web apps or complex interactions
+
+---
+
+## Mode D — Text-only (Ultra)
+**Goal:** Maximum compatibility and minimal bandwidth.
+
+**Internally uses**
+- Internal Mode 5 (text-only)
+
+**Best for**
+- Very slow connections
+- When other modes fail
+- Accessibility / minimal UI needs
+
+**Known limitations**
+- Minimal visuals and reduced interactivity
+
+---
+
+## Mode E — Snapshot (View-only)
+**Goal:** Load using a real browser once, then replay a captured version.
+
+**Internally uses**
+- Internal Mode 8 (snapshot/replay)
+- Often created using Internal Mode 3 (Playwright/Puppeteer) to generate the snapshot
+
+**Best for**
+- View-only pages, quick sharing, low-cost access to JS-heavy pages without live sessions
+
+**Known limitations**
+- Not fully interactive
+- Dynamic updates and some login flows may not work well
+
+---
+
+## Mode F — Live (Interactive)
+**Goal:** Interactive browsing where the real page runs on the server.
+
+**Internally uses**
+- Internal Mode 3 (rendering-as-image / CDP streaming via Playwright/Puppeteer)
+- May use Internal Mode 7 (selective remote rendering) to reduce cost
+
+**Best for**
+- Modern JS apps
+- Sites that break in proxy mode
+
+**Known limitations**
+- Higher server cost
+- Latency depending on network and server load
+- Audio/video may be limited depending on implementation
+
+---
+
+## Mode G — Full Desktop (Maximum)
+**Goal:** Maximum compatibility via a full remote desktop browser.
+
+**Internally uses**
+- Internal Mode 1 (Guacamole/noVNC)
+
+**Best for**
+- Long sessions
+- Downloads and complex workflows
+- Maximum compatibility requirements
+
+**Known limitations**
+- Highest server cost
+- Requires strict isolation and abuse prevention
+
+---
