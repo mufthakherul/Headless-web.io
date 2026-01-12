@@ -37,8 +37,21 @@ class PDFGenerator {
   }
 
   async generatePDFFromURL(url, options = {}) {
+    let browser = null;
     try {
-      await this.initialize();
+      // Use a fresh browser instance for PDF generation to avoid conflicts
+      const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+      browser = await chromium.launch({
+        headless: true,
+        ...(executablePath ? { executablePath } : {}),
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu'
+          // Note: Removed --single-process and --no-zygote for PDF generation stability
+        ]
+      });
 
       // Extract article content
       const article = await extractContent(url);
@@ -51,10 +64,10 @@ class PDFGenerator {
       const html = this.generatePDFHTML(article, url);
 
       // Create PDF
-      const context = await this.browser.newContext();
+      const context = await browser.newContext();
       const page = await context.newPage();
       
-      await page.setContent(html);
+      await page.setContent(html, { waitUntil: 'networkidle' });
       
       const pdf = await page.pdf({
         format: options.format || 'A4',
@@ -71,6 +84,7 @@ class PDFGenerator {
       });
 
       await context.close();
+      await browser.close();
 
       logger.info('PDF generated from URL', { 
         url, 
@@ -81,6 +95,13 @@ class PDFGenerator {
       return pdf;
     } catch (error) {
       logger.error('Failed to generate PDF', { url, error: error.message });
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          logger.error('Failed to close PDF browser', { error: closeError.message });
+        }
+      }
       throw error;
     }
   }

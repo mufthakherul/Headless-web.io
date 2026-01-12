@@ -27,9 +27,7 @@ class LiveModeManager {
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
-            '--disable-gpu',
-            '--single-process',
-            '--no-zygote'
+            '--disable-gpu'
           ]
         });
         logger.info('Playwright browser launched successfully');
