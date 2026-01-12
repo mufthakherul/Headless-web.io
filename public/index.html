@@ -829,9 +829,14 @@
                     });
                     const liveData = await liveResponse.json();
 
+                    if (!liveData.success) {
+                        throw new Error(liveData.message || 'Failed to start live session');
+                    }
+
                     finalUrl = `/live?sid=${sid}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '🎮 Open Live Mode', url: finalUrl }
+                        { label: '🎮 Open Live Mode Again', url: finalUrl }
                     ];
                 } else if (selectedMode === 'snapshot') {
                     // Create snapshot
