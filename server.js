@@ -2,6 +2,9 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
+const helmet = require('helmet');
+const compression = require('compression');
+const cors = require('cors');
 const { ssrfProtectionMiddleware } = require('./security');
 const { rateLimitMiddleware, sessionRateLimitMiddleware } = require('./rateLimit');
 const logger = require('./logger');
@@ -20,9 +23,26 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const USE_REDIS = process.env.USE_REDIS === 'true';
 
+// Security middleware - Helmet.js for secure headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled for now to allow inline scripts
+  crossOriginEmbedderPolicy: false
+}));
+
+// Compression middleware for better performance
+app.use(compression());
+
+// CORS configuration for API access
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'web')));
 
 // Apply rate limiting to all routes
@@ -471,19 +491,206 @@ app.get('/health', async (req, res) => {
   res.json(health);
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
+// API Documentation endpoint
+app.get('/api/docs', (req, res) => {
+  const apiDocs = {
+    title: 'Headless-web Gateway API Documentation',
+    version: '2.0.0',
+    description: 'Advanced web-based headless browsing gateway with multiple compatibility modes',
+    baseUrl: `${req.protocol}://${req.get('host')}`,
+    endpoints: {
+      session: {
+        'GET /go': {
+          description: 'Start a new browsing session',
+          parameters: {
+            url: { type: 'string', required: true, description: 'Target URL to browse' },
+            mode: { type: 'string', required: false, default: 'fast', options: ['fast', 'reader', 'text', 'live', 'snapshot'] }
+          },
+          response: { sessionId: 'string', url: 'string', mode: 'string' },
+          example: '/go?url=https://example.com&mode=fast'
+        }
+      },
+      proxy: {
+        'GET /proxy': {
+          description: 'Fast mode - Server-side fetch with HTML rewriting',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID from /go' },
+            url: { type: 'string', required: true, description: 'URL to fetch' }
+          },
+          response: 'HTML content',
+          example: '/proxy?sid=session_xxx&url=https://example.com'
+        }
+      },
+      reader: {
+        'GET /reader': {
+          description: 'Reader mode - Clean article extraction',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID' },
+            url: { type: 'string', required: true, description: 'Article URL' }
+          },
+          response: 'Readable HTML',
+          example: '/reader?sid=session_xxx&url=https://example.com/article'
+        }
+      },
+      text: {
+        'GET /text': {
+          description: 'Text-only mode - Minimal bandwidth',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID' },
+            url: { type: 'string', required: true, description: 'URL to convert' }
+          },
+          response: 'Text-only HTML',
+          example: '/text?sid=session_xxx&url=https://example.com'
+        }
+      },
+      live: {
+        'POST /live/start': {
+          description: 'Start interactive browser session (Playwright)',
+          parameters: {
+            url: { type: 'string', required: true, description: 'URL to load' },
+            sessionId: { type: 'string', required: true, description: 'Session ID' }
+          },
+          response: { success: true, mode: 'live', viewport: 'object' },
+          example: 'POST /live/start with JSON body'
+        },
+        'GET /live/frame': {
+          description: 'Get current frame/screenshot from live session',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID' }
+          },
+          response: 'PNG image',
+          example: '/live/frame?sid=session_xxx'
+        },
+        'POST /live/input': {
+          description: 'Send input events to live session',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID' },
+            event: { type: 'object', required: true, description: 'Input event data' }
+          },
+          response: { success: true },
+          example: 'POST /live/input with JSON body'
+        }
+      },
+      snapshot: {
+        'POST /snapshot/create': {
+          description: 'Create page snapshot',
+          parameters: {
+            url: { type: 'string', required: true, description: 'URL to snapshot' },
+            fullPage: { type: 'boolean', required: false, default: false }
+          },
+          response: { snapshotId: 'string', snapshot: 'object' },
+          example: 'POST /snapshot/create with JSON body'
+        },
+        'GET /snapshot/view': {
+          description: 'View saved snapshot',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Snapshot ID' }
+          },
+          response: 'HTML content',
+          example: '/snapshot/view?sid=snapshot_xxx'
+        },
+        'GET /snapshot/list': {
+          description: 'List all snapshots',
+          response: { snapshots: 'array', count: 'number' },
+          example: '/snapshot/list'
+        },
+        'GET /snapshot/screenshot': {
+          description: 'Get snapshot screenshot',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Snapshot ID' }
+          },
+          response: 'PNG image',
+          example: '/snapshot/screenshot?sid=snapshot_xxx'
+        }
+      },
+      pdf: {
+        'GET /pdf/generate': {
+          description: 'Generate PDF from URL using reader mode',
+          parameters: {
+            url: { type: 'string', required: true, description: 'URL to convert to PDF' }
+          },
+          response: 'PDF file',
+          example: '/pdf/generate?url=https://example.com/article'
+        }
+      },
+      monitoring: {
+        'GET /health': {
+          description: 'Health check endpoint',
+          response: { status: 'ok', timestamp: 'ISO-8601', features: 'object' },
+          example: '/health'
+        },
+        'GET /stats': {
+          description: 'Server statistics',
+          response: { server: 'object', liveMode: 'object', snapshot: 'object' },
+          example: '/stats'
+        }
+      }
+    },
+    security: {
+      ssrf: 'SSRF protection prevents access to internal/private networks',
+      rateLimit: '60 requests per minute per IP address',
+      sessionValidation: 'All requests require valid session IDs',
+      logging: 'Comprehensive logging of all requests'
+    },
+    features: [
+      'Multiple browsing modes (Fast, Reader, Text-only, Live, Snapshot)',
+      'PDF generation from articles',
+      'WebSocket support for real-time updates',
+      'Cookie management',
+      'Session persistence',
+      'Rate limiting',
+      'SSRF protection',
+      'Compression for better performance',
+      'CORS support for API access'
+    ]
+  };
+
+  res.json(apiDocs);
 });
 
-// Error handler
+// 404 handler
+app.use((req, res) => {
+  logger.warn('404 Not Found', { 
+    method: req.method, 
+    url: req.url, 
+    ip: req.ip 
+  });
+  res.status(404).json({ 
+    error: 'Not found',
+    message: `The endpoint ${req.method} ${req.url} does not exist`,
+    suggestion: 'Check /api/docs for available endpoints',
+    documentation: '/api/docs'
+  });
+});
+
+// Error handler with better error messages
 app.use((err, req, res, next) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   logger.error('Unhandled error', { 
     error: err.message, 
     stack: err.stack,
-    url: req.url 
+    url: req.url,
+    method: req.method,
+    ip: req.ip
   });
-  res.status(500).json({ error: 'Internal server error' });
+  
+  // Send different responses based on environment
+  if (isProduction) {
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: 'An unexpected error occurred. Please try again later.',
+      requestId: crypto.randomBytes(8).toString('hex'),
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: err.message,
+      stack: err.stack,
+      url: req.url
+    });
+  }
 });
 
 // Start server (only if not in serverless environment)

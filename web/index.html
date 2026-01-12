@@ -514,9 +514,14 @@
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
             <span id="theme-icon">🌙</span>
         </button>
-        <button class="stats-btn" onclick="showStats()">
-            📊 Stats
-        </button>
+        <div style="display: flex; gap: 10px;">
+            <button class="stats-btn" onclick="window.open('/api/docs', '_blank')">
+                📚 API Docs
+            </button>
+            <button class="stats-btn" onclick="showStats()">
+                📊 Stats
+            </button>
+        </div>
     </nav>
 
     <div class="container">
