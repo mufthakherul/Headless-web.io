@@ -3,6 +3,10 @@ const path = require('path');
 const crypto = require('crypto');
 const { ssrfProtectionMiddleware } = require('./security');
 const { rateLimitMiddleware, sessionRateLimitMiddleware } = require('./rateLimit');
+const logger = require('./logger');
+const { fetchAndRewrite } = require('./proxy');
+const { extractContent, generateReaderHTML } = require('./reader');
+const { convertToTextOnly, generateTextOnlyHTML } = require('./textOnly');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +18,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
+
+// Logging middleware
+app.use((req, res, next) => {
+  logger.request(req);
+  next();
+});
 
 // ===== CONFIGURATION =====
 
@@ -51,17 +61,19 @@ app.get('/go', sessionRateLimitMiddleware, ssrfProtectionMiddleware, (req, res) 
     lastAccessed: Date.now()
   });
   
+  logger.session('created', sessionId, { url, mode });
+  
   res.json({
     success: true,
     sessionId,
     url,
     mode,
-    message: 'Session created successfully (Note: Actual browsing features not yet implemented)'
+    message: 'Session created successfully'
   });
 });
 
 // Proxy mode: Server-side fetch + rewrite (with SSRF protection)
-app.get('/proxy', ssrfProtectionMiddleware, (req, res) => {
+app.get('/proxy', ssrfProtectionMiddleware, async (req, res) => {
   const { sid, url } = req.query;
   
   // Validate session ID
@@ -69,25 +81,30 @@ app.get('/proxy', ssrfProtectionMiddleware, (req, res) => {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
   
-  // TODO: Implement HTTP fetch and HTML/CSS rewriting
-  // TODO: Handle cookie/session mapping
-  // TODO: Rewrite links, forms, and assets
-  
-  res.json({
-    mode: 'proxy',
-    message: 'Proxy rewrite not yet implemented',
-    todo: [
-      'Fetch URL server-side',
-      'Rewrite HTML (href, src, action)',
-      'Rewrite CSS (url(...))',
-      'Handle redirects',
-      'Map cookies'
-    ]
-  });
+  if (!url) {
+    return res.status(400).json({ error: 'URL parameter is required' });
+  }
+
+  try {
+    const result = await fetchAndRewrite(url, sid, '/proxy');
+    
+    // Update session last accessed time
+    const session = sessions.get(sid);
+    session.lastAccessed = Date.now();
+    
+    res.setHeader('Content-Type', result.contentType);
+    res.status(result.statusCode).send(result.content);
+  } catch (error) {
+    logger.error('Proxy request failed', { sid, url, error: error.message });
+    res.status(500).json({ 
+      error: 'Proxy failed', 
+      message: error.message 
+    });
+  }
 });
 
 // Reader mode: Content extraction (with SSRF protection)
-app.get('/reader', ssrfProtectionMiddleware, (req, res) => {
+app.get('/reader', ssrfProtectionMiddleware, async (req, res) => {
   const { sid, url } = req.query;
   
   // Validate session ID
@@ -95,23 +112,31 @@ app.get('/reader', ssrfProtectionMiddleware, (req, res) => {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
   
-  // TODO: Fetch page content
-  // TODO: Apply readability algorithm to extract main content
-  // TODO: Strip scripts/styles and present clean template
-  
-  res.json({
-    mode: 'reader',
-    message: 'Reader mode not yet implemented',
-    todo: [
-      'Parse HTML',
-      'Extract main content using readability algorithm',
-      'Return clean article template'
-    ]
-  });
+  if (!url) {
+    return res.status(400).json({ error: 'URL parameter is required' });
+  }
+
+  try {
+    const article = await extractContent(url);
+    const html = generateReaderHTML(article, url);
+    
+    // Update session last accessed time
+    const session = sessions.get(sid);
+    session.lastAccessed = Date.now();
+    
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (error) {
+    logger.error('Reader mode failed', { sid, url, error: error.message });
+    res.status(500).json({ 
+      error: 'Reader mode failed', 
+      message: error.message 
+    });
+  }
 });
 
 // Text-only mode: Minimal representation (with SSRF protection)
-app.get('/text', ssrfProtectionMiddleware, (req, res) => {
+app.get('/text', ssrfProtectionMiddleware, async (req, res) => {
   const { sid, url } = req.query;
   
   // Validate session ID
@@ -119,20 +144,27 @@ app.get('/text', ssrfProtectionMiddleware, (req, res) => {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
   
-  // TODO: Fetch page
-  // TODO: Convert to plain text with links as list
-  // TODO: Present basic forms if possible
-  
-  res.json({
-    mode: 'text-only',
-    message: 'Text-only mode not yet implemented',
-    todo: [
-      'Extract text content',
-      'List links',
-      'Present basic forms',
-      'Minimal bandwidth usage'
-    ]
-  });
+  if (!url) {
+    return res.status(400).json({ error: 'URL parameter is required' });
+  }
+
+  try {
+    const data = await convertToTextOnly(url);
+    const html = generateTextOnlyHTML(data);
+    
+    // Update session last accessed time
+    const session = sessions.get(sid);
+    session.lastAccessed = Date.now();
+    
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (error) {
+    logger.error('Text-only mode failed', { sid, url, error: error.message });
+    res.status(500).json({ 
+      error: 'Text-only mode failed', 
+      message: error.message 
+    });
+  }
 });
 
 // Live mode: Start Playwright session (with SSRF protection)
@@ -300,17 +332,26 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error('Unhandled error', { 
+    error: err.message, 
+    stack: err.stack,
+    url: req.url 
+  });
   res.status(500).json({ error: 'Internal server error' });
 });
 
 // Start server
 app.listen(PORT, () => {
+  logger.info(`Headless-web server started on port ${PORT}`);
   console.log(`Headless-web server running on http://localhost:${PORT}`);
-  console.log('✅ Security features enabled:');
+  console.log('✅ Features enabled:');
   console.log('   - SSRF protection active');
   console.log('   - Rate limiting active (60 req/min per IP)');
   console.log('   - Session validation active');
-  console.log('⚠️  Note: Core browsing features still in development');
+  console.log('   - Proxy mode (Fast) ✅');
+  console.log('   - Reader mode ✅');
+  console.log('   - Text-only mode ✅');
+  console.log('   - Comprehensive logging ✅');
+  console.log('⚠️  Note: Live and Desktop modes still in development');
   console.log('See README.md for implementation status and next steps');
 });
