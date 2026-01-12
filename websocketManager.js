@@ -14,7 +14,7 @@ class WebSocketManager {
   }
 
   initialize(server) {
-    this.wss = new WebSocket.Server({ 
+    this.wss = new WebSocket.Server({
       server,
       path: '/ws/live'
     });
@@ -28,7 +28,7 @@ class WebSocketManager {
 
   handleConnection(ws, req) {
     const sessionId = this.extractSessionId(req);
-    
+
     if (!sessionId) {
       ws.close(1008, 'Missing session ID');
       return;
@@ -73,7 +73,7 @@ class WebSocketManager {
   async handleMessage(ws, sessionId, data) {
     try {
       const message = JSON.parse(data.toString());
-      
+
       switch (message.type) {
         case 'input':
           await this.handleInput(sessionId, message.event);
@@ -92,15 +92,15 @@ class WebSocketManager {
           break;
 
         default:
-          logger.warn('Unknown WebSocket message type', { 
-            sessionId, 
-            type: message.type 
+          logger.warn('Unknown WebSocket message type', {
+            sessionId,
+            type: message.type
           });
       }
     } catch (error) {
-      logger.error('Failed to handle WebSocket message', { 
-        sessionId, 
-        error: error.message 
+      logger.error('Failed to handle WebSocket message', {
+        sessionId,
+        error: error.message
       });
       this.sendMessage(ws, {
         type: 'error',
@@ -112,7 +112,7 @@ class WebSocketManager {
   async handleInput(sessionId, event) {
     try {
       await liveManager.sendInput(sessionId, event);
-      
+
       // Send frame update after input
       setTimeout(() => {
         this.sendFrame(sessionId);
@@ -125,7 +125,7 @@ class WebSocketManager {
   async handleNavigate(sessionId, url) {
     try {
       await liveManager.navigate(sessionId, url);
-      
+
       const ws = this.clients.get(sessionId);
       if (ws) {
         this.sendMessage(ws, {
@@ -151,7 +151,8 @@ class WebSocketManager {
     }
 
     try {
-      const frameData = await liveManager.captureFrame(sessionId, 'png');
+      // Use JPEG for better compression (70% smaller than PNG at 80% quality)
+      const frameData = await liveManager.captureFrame(sessionId, 'jpeg');
       const pageInfo = await liveManager.getPageInfo(sessionId);
 
       this.sendMessage(ws, {
@@ -170,10 +171,10 @@ class WebSocketManager {
     // Stream frames at 2 FPS (every 500ms)
     let errorCount = 0;
     const maxErrors = 5;
-    
+
     const intervalId = setInterval(async () => {
       const ws = this.clients.get(sessionId);
-      
+
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         clearInterval(intervalId);
         return;
@@ -185,7 +186,7 @@ class WebSocketManager {
       } catch (error) {
         errorCount++;
         logger.error('Frame streaming error', { sessionId, errorCount, error: error.message });
-        
+
         // Stop streaming after too many errors
         if (errorCount >= maxErrors) {
           logger.error('Stopping frame streaming due to repeated errors', { sessionId });
@@ -226,7 +227,7 @@ class WebSocketManager {
 
   shutdown() {
     logger.info('Shutting down WebSocket server');
-    
+
     // Close all client connections
     for (const [sessionId, ws] of this.clients.entries()) {
       if (ws._frameInterval) {

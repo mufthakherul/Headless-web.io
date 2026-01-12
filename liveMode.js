@@ -100,12 +100,12 @@ class LiveModeManager {
 
     try {
       session.lastAccessed = Date.now();
-      
+
       // Check if page is still valid
       if (!session.page || session.page.isClosed()) {
         throw new Error('Page has been closed');
       }
-      
+
       const screenshot = await session.page.screenshot({
         type: format,
         fullPage: false,
@@ -122,8 +122,8 @@ class LiveModeManager {
         timestamp: Date.now()
       };
     } catch (error) {
-      logger.error('Failed to capture frame', { 
-        sessionId, 
+      logger.error('Failed to capture frame', {
+        sessionId,
         error: error.message,
         pageExists: session.page !== undefined,
         pageClosed: session.page ? session.page.isClosed() : 'N/A'

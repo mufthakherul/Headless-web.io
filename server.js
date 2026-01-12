@@ -445,7 +445,7 @@ app.get('/live/session/:sid', (req, res) => {
   const { sid } = req.params;
   const sessionExists = sessions.has(sid);
   const liveStats = liveManager.getStats();
-  
+
   try {
     const allLiveSessions = Array.from(liveManager.sessions.entries()).map(([id, sess]) => ({
       sessionId: id,
