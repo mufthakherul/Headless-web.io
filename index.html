@@ -62,38 +62,70 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-link {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s;
+        }
+
+        .logo-link:hover {
+            opacity: 0.9;
         }
 
         .theme-toggle {
-            background: var(--bg-main);
-            border: none;
-            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 20px;
-            box-shadow: 0 4px 6px var(--shadow);
-            transition: transform 0.2s;
+            font-size: 18px;
+            box-shadow: none;
+            transition: all 0.2s;
         }
 
         .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
             transform: scale(1.05);
         }
 
         .stats-btn {
-            background: var(--bg-main);
-            color: var(--text-primary);
-            border: none;
-            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 500;
-            box-shadow: 0 4px 6px var(--shadow);
+            text-decoration: none;
+            display: inline-block;
             transition: all 0.2s;
         }
 
         .stats-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px var(--shadow);
         }
 
         .container {
@@ -147,9 +179,16 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
         }
 
-        .header p {
+        .header .subtitle {
             opacity: 0.95;
             font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .header .tagline {
+            opacity: 0.85;
+            font-size: 0.95em;
+            font-style: italic;
         }
 
         .feature-badges {
@@ -289,11 +328,58 @@
             transform: translateY(-2px);
         }
 
+        .mode-section {
+            margin-bottom: 30px;
+        }
+
+        .mode-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .mode-section-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .mode-section-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-basic {
+            background: var(--success);
+            color: white;
+        }
+
+        .badge-advanced {
+            background: var(--primary);
+            color: white;
+        }
+
+        .badge-premium {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .mode-section-description {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+
         .mode-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
-            margin-top: 20px;
         }
 
         .mode-card {
@@ -360,9 +446,66 @@
             color: white;
         }
 
-        .features-grid {
+        .info-section {
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--primary);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .info-section-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-section-content {
+            font-size: 0.95em;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .quick-start-steps {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .step-number {
+            background: var(--primary);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+
+        .step-text {
+            font-size: 0.9em;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 15px;
             margin: 30px 0;
         }
@@ -371,18 +514,27 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 12px;
+            padding: 10px 15px;
             background: var(--bg-secondary);
             border-radius: 8px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .feature-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
         }
 
         .feature-icon {
-            font-size: 1.5em;
+            font-size: 1.3em;
+            flex-shrink: 0;
         }
 
         .feature-text {
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: var(--text-primary);
+            font-weight: 500;
         }
 
         .loading {
@@ -535,16 +687,17 @@
     <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
 
     <nav class="nav">
-        <div style="display: flex; gap: 15px; align-items: center;">
+        <div class="nav-left">
+            <a href="/" class="logo-link">🌐 Headless-web</a>
+        </div>
+        <div class="nav-right">
             <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
                 <span id="theme-icon">🌙</span>
             </button>
             <button class="stats-btn" onclick="showStats()">
                 📊 Stats
             </button>
-        </div>
-        <div id="auth-nav" style="display: flex; gap: 10px;">
-            <a href="/login.html" class="stats-btn" style="text-decoration: none;">🔐 Login</a>
+            <div id="auth-nav"></div>
         </div>
     </nav>
 
@@ -552,26 +705,30 @@
         <div class="header">
             <div class="header-content">
                 <h1>🌐 Headless-web Gateway</h1>
-                <p>Advanced web browsing with multiple compatibility modes</p>
-                <div class="feature-badges">
-                    <span class="badge">🔒 Secure</span>
-                    <span class="badge">⚡ Fast</span>
-                    <span class="badge">🎮 Interactive</span>
-                    <span class="badge">📸 Snapshot</span>
-                    <span class="badge">📄 PDF Export</span>
-                    <span class="badge">🤖 AI Chat</span>
-                    <span class="badge">🕷️ Web Scraper</span>
-                    <span class="badge">⬇️ Media DL</span>
-                </div>
+                <p class="subtitle">Advanced web browsing with multiple compatibility modes</p>
+                <p class="tagline">Browse websites through your server using different rendering techniques</p>
             </div>
         </div>
 
         <div class="content">
-            <div class="alert alert-success">
-                <span class="alert-icon">✅</span>
-                <div>
-                    <strong>All Advanced Features Active!</strong>
-                    <p>Proxy, Reader, Text-only, Live Mode, Snapshot, and PDF generation are now available.</p>
+            <!-- Quick Start Guide -->
+            <div class="info-section">
+                <div class="info-section-title">
+                    💡 Quick Start Guide
+                </div>
+                <div class="quick-start-steps">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Enter a website URL below</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Choose a browsing mode</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Click Browse to start</div>
+                    </div>
                 </div>
             </div>
 
@@ -593,81 +750,117 @@
 
                 <div class="form-group">
                     <label>🎯 Select Browsing Mode</label>
-                    <div class="mode-grid">
-                        <div class="mode-card selected" data-mode="fast" onclick="selectMode('fast')">
-                            <span class="mode-badge badge-new">READY</span>
-                            <div class="mode-icon">⚡</div>
-                            <div class="mode-title">Fast (Proxy)</div>
-                            <div class="mode-description">Server-side fetch with HTML/CSS rewriting. Best for static
-                                sites.</div>
+                    
+                    <!-- Basic Modes Section -->
+                    <div class="mode-section">
+                        <div class="mode-section-header">
+                            <div class="mode-section-title">Basic Modes</div>
+                            <span class="mode-section-badge badge-basic">Recommended</span>
                         </div>
-
-                        <div class="mode-card" data-mode="reader" onclick="selectMode('reader')">
-                            <span class="mode-badge badge-new">READY</span>
-                            <div class="mode-icon">📖</div>
-                            <div class="mode-title">Reader Mode</div>
-                            <div class="mode-description">Extract main article content with clean formatting. Includes
-                                PDF export.</div>
+                        <div class="mode-section-description">
+                            Fast and lightweight options ideal for everyday browsing and content reading
                         </div>
+                        <div class="mode-grid">
+                            <div class="mode-card selected" data-mode="fast" onclick="selectMode('fast')">
+                                <span class="mode-badge badge-new">READY</span>
+                                <div class="mode-icon">⚡</div>
+                                <div class="mode-title">Fast (Proxy)</div>
+                                <div class="mode-description">Server-side fetch with HTML/CSS rewriting. Best for static sites.</div>
+                            </div>
 
-                        <div class="mode-card" data-mode="text" onclick="selectMode('text')">
-                            <span class="mode-badge badge-new">READY</span>
-                            <div class="mode-icon">📝</div>
-                            <div class="mode-title">Text-only</div>
-                            <div class="mode-description">Minimal bandwidth mode with text and links only.</div>
+                            <div class="mode-card" data-mode="reader" onclick="selectMode('reader')">
+                                <span class="mode-badge badge-new">READY</span>
+                                <div class="mode-icon">📖</div>
+                                <div class="mode-title">Reader Mode</div>
+                                <div class="mode-description">Extract main article content with clean formatting. Includes PDF export.</div>
+                            </div>
+
+                            <div class="mode-card" data-mode="text" onclick="selectMode('text')">
+                                <span class="mode-badge badge-new">READY</span>
+                                <div class="mode-icon">📝</div>
+                                <div class="mode-title">Text-only</div>
+                                <div class="mode-description">Minimal bandwidth mode with text and links only.</div>
+                            </div>
                         </div>
+                    </div>
 
-                        <div class="mode-card" data-mode="live" onclick="selectMode('live')">
-                            <span class="mode-badge badge-new">NEW</span>
-                            <div class="mode-icon">🎮</div>
-                            <div class="mode-title">Live Mode</div>
-                            <div class="mode-description">Interactive browser session with real-time streaming via
-                                WebSocket.</div>
+                    <!-- Advanced Modes Section -->
+                    <div class="mode-section">
+                        <div class="mode-section-header">
+                            <div class="mode-section-title">Advanced Modes</div>
+                            <span class="mode-section-badge badge-advanced">Interactive</span>
                         </div>
-
-                        <div class="mode-card" data-mode="snapshot" onclick="selectMode('snapshot')">
-                            <span class="mode-badge badge-new">NEW</span>
-                            <div class="mode-icon">📸</div>
-                            <div class="mode-title">Snapshot</div>
-                            <div class="mode-description">Capture and save pages for offline viewing with full
-                                resources.</div>
+                        <div class="mode-section-description">
+                            Interactive browsing with real-time rendering and full JavaScript support
                         </div>
+                        <div class="mode-grid">
+                            <div class="mode-card" data-mode="live" onclick="selectMode('live')">
+                                <span class="mode-badge badge-new">NEW</span>
+                                <div class="mode-icon">🎮</div>
+                                <div class="mode-title">Live Mode</div>
+                                <div class="mode-description">Interactive browser session with real-time streaming via WebSocket.</div>
+                            </div>
 
-                        <div class="mode-card" data-mode="desktop" onclick="selectMode('desktop')">
-                            <span class="mode-badge badge-new">NEW</span>
-                            <div class="mode-icon">🖥️</div>
-                            <div class="mode-title">Desktop Mode</div>
-                            <div class="mode-description">Enhanced browser with full page captures, viewport resizing,
-                                and JavaScript execution.</div>
+                            <div class="mode-card" data-mode="snapshot" onclick="selectMode('snapshot')">
+                                <span class="mode-badge badge-new">NEW</span>
+                                <div class="mode-icon">📸</div>
+                                <div class="mode-title">Snapshot</div>
+                                <div class="mode-description">Capture and save pages for offline viewing with full resources.</div>
+                            </div>
+
+                            <div class="mode-card" data-mode="desktop" onclick="selectMode('desktop')">
+                                <span class="mode-badge badge-new">NEW</span>
+                                <div class="mode-icon">🖥️</div>
+                                <div class="mode-title">Desktop Mode</div>
+                                <div class="mode-description">Enhanced browser with full page captures, viewport resizing, and JavaScript execution.</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </form>
 
-            <div class="features-grid">
-                <div class="feature-item">
-                    <span class="feature-icon">🔒</span>
-                    <span class="feature-text">SSRF Protected</span>
+            <!-- Security & Features Overview -->
+            <div class="info-section">
+                <div class="info-section-title">
+                    🔒 Security & Features
                 </div>
-                <div class="feature-item">
-                    <span class="feature-icon">⚡</span>
-                    <span class="feature-text">Rate Limited</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">🍪</span>
-                    <span class="feature-text">Cookie Management</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">📊</span>
-                    <span class="feature-text">Real-time Stats</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">🔌</span>
-                    <span class="feature-text">WebSocket Support</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">📄</span>
-                    <span class="feature-text">PDF Export</span>
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <span class="feature-icon">🔒</span>
+                        <span class="feature-text">SSRF Protected</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">⚡</span>
+                        <span class="feature-text">Rate Limited</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🍪</span>
+                        <span class="feature-text">Cookie Management</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📊</span>
+                        <span class="feature-text">Real-time Stats</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🔌</span>
+                        <span class="feature-text">WebSocket Support</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📄</span>
+                        <span class="feature-text">PDF Export</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🤖</span>
+                        <span class="feature-text">AI Chat</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🕷️</span>
+                        <span class="feature-text">Web Scraper</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">⬇️</span>
+                        <span class="feature-text">Media Download</span>
+                    </div>
                 </div>
             </div>
 
@@ -684,9 +877,15 @@
         </div>
 
         <div class="footer">
-            <p>Headless-web Gateway v2.0 | <a href="https://github.com/mufthakherul/Headless-web.io"
-                    target="_blank">View on GitHub</a></p>
-            <p>Features: Playwright, WebSocket, Redis, Cookie Management, PDF Generation</p>
+            <p>
+                <strong>Headless-web Gateway v4.0</strong> | 
+                <a href="https://github.com/mufthakherul/Headless-web.io" target="_blank">View on GitHub</a> | 
+                <a href="/ai-chat.html">AI Chat</a> | 
+                <a href="/downloader.html">Media Tools</a>
+            </p>
+            <p style="margin-top: 8px; font-size: 0.85em;">
+                Powered by Playwright, WebSocket, Redis & PostgreSQL
+            </p>
         </div>
     </div>
 
@@ -713,12 +912,10 @@
             if (token && user) {
                 // User is logged in
                 authNav.innerHTML = `
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <span class="stats-btn" style="background: transparent; box-shadow: none; padding: 0;">👤 ${user.email}</span>
-                        <a href="/ai-chat.html" class="stats-btn" style="text-decoration: none;">🤖 AI Chat</a>
-                        <a href="/downloader.html" class="stats-btn" style="text-decoration: none;">⬇️ Download</a>
-                        <button class="stats-btn" onclick="logout()" style="background: #ef4444;">Logout</button>
-                    </div>
+                    <a href="/profile.html" class="stats-btn" style="text-decoration: none;">👤 ${user.email.split('@')[0]}</a>
+                    <a href="/ai-chat.html" class="stats-btn" style="text-decoration: none;">🤖 AI</a>
+                    <a href="/downloader.html" class="stats-btn" style="text-decoration: none;">⬇️ Tools</a>
+                    <button class="stats-btn" onclick="logout()" style="background: rgba(239, 68, 68, 0.8); border-color: rgba(239, 68, 68, 0.9);">Logout</button>
                 `;
             } else {
                 // User is not logged in
