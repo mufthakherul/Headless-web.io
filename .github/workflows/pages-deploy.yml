@@ -34,7 +34,7 @@ jobs:
       - name: Create build directory
         run: |
           mkdir -p build
-          cp -r public/* build/
+          cp -r web/* build/
           cp package*.json build/
           cp server.js build/
           cp README.md build/

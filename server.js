@@ -23,7 +23,7 @@ const USE_REDIS = process.env.USE_REDIS === 'true';
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'web')));
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
@@ -64,12 +64,12 @@ function generateSessionId() {
 
 // Main UI page
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'web', 'index.html'));
 });
 
 // Live mode viewer page (rate limited by global middleware)
 app.get('/live', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'live.html'));
+  res.sendFile(path.join(__dirname, 'web', 'live.html'));
 });
 
 // Start a new session/tab (with SSRF protection and session rate limiting)
@@ -486,68 +486,73 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Start server
-server.listen(PORT, () => {
-  logger.info(`Headless-web server started on port ${PORT}`);
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`🚀 Headless-web Gateway Server`);
-  console.log(`${'='.repeat(60)}`);
-  console.log(`\n📡 Server: http://localhost:${PORT}`);
-  console.log(`\n✅ Advanced Features Enabled:`);
-  console.log('   ⚡ Fast Mode (Proxy) - Server-side fetch + rewrite');
-  console.log('   📖 Reader Mode - Article extraction');
-  console.log('   📝 Text-only Mode - Minimal bandwidth');
-  console.log('   🎮 Live Mode (Playwright) - Interactive browser sessions');
-  console.log('   📸 Snapshot Mode - Capture and replay with HAR');
-  console.log('   📄 PDF Generation - Convert reader mode to PDF');
-  console.log('   🔌 WebSocket Support - Real-time updates (/ws/live)');
-  console.log('   🍪 Cookie Management - Persistent cookie storage');
-  console.log(`   ${USE_REDIS ? '✅' : '⚠️'} Redis - ${USE_REDIS ? 'Distributed sessions enabled' : 'Using in-memory storage'}`);
-  console.log('\n🔒 Security:');
-  console.log('   - SSRF protection active');
-  console.log('   - Rate limiting active (60 req/min per IP)');
-  console.log('   - Session validation active');
-  console.log('   - Comprehensive logging enabled');
-  console.log('\n⚠️  Note: Desktop mode (noVNC/Guacamole) requires additional setup');
-  console.log('\n📚 Documentation: See README.md and docs/ folder');
-  console.log(`${'='.repeat(60)}\n`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  
-  // Close server
-  server.close(() => {
-    logger.info('HTTP server closed');
+// Start server (only if not in serverless environment)
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  server.listen(PORT, () => {
+    logger.info(`Headless-web server started on port ${PORT}`);
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`🚀 Headless-web Gateway Server`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`\n📡 Server: http://localhost:${PORT}`);
+    console.log(`\n✅ Advanced Features Enabled:`);
+    console.log('   ⚡ Fast Mode (Proxy) - Server-side fetch + rewrite');
+    console.log('   📖 Reader Mode - Article extraction');
+    console.log('   📝 Text-only Mode - Minimal bandwidth');
+    console.log('   🎮 Live Mode (Playwright) - Interactive browser sessions');
+    console.log('   📸 Snapshot Mode - Capture and replay with HAR');
+    console.log('   📄 PDF Generation - Convert reader mode to PDF');
+    console.log('   🔌 WebSocket Support - Real-time updates (/ws/live)');
+    console.log('   🍪 Cookie Management - Persistent cookie storage');
+    console.log(`   ${USE_REDIS ? '✅' : '⚠️'} Redis - ${USE_REDIS ? 'Distributed sessions enabled' : 'Using in-memory storage'}`);
+    console.log('\n🔒 Security:');
+    console.log('   - SSRF protection active');
+    console.log('   - Rate limiting active (60 req/min per IP)');
+    console.log('   - Session validation active');
+    console.log('   - Comprehensive logging enabled');
+    console.log('\n⚠️  Note: Desktop mode (noVNC/Guacamole) requires additional setup');
+    console.log('\n📚 Documentation: See README.md and docs/ folder');
+    console.log(`${'='.repeat(60)}\n`);
   });
 
-  // Cleanup managers
-  await Promise.all([
-    liveManager.shutdown(),
-    snapshotManager.shutdown(),
-    pdfGenerator.shutdown(),
-    wsManager.shutdown(),
-    USE_REDIS ? redisManager.shutdown() : Promise.resolve()
-  ]);
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    logger.info('SIGTERM received, shutting down gracefully');
+    
+    // Close server
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
 
-  process.exit(0);
-});
+    // Cleanup managers
+    await Promise.all([
+      liveManager.shutdown(),
+      snapshotManager.shutdown(),
+      pdfGenerator.shutdown(),
+      wsManager.shutdown(),
+      USE_REDIS ? redisManager.shutdown() : Promise.resolve()
+    ]);
 
-process.on('SIGINT', async () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  
-  server.close(() => {
-    logger.info('HTTP server closed');
+    process.exit(0);
   });
 
-  await Promise.all([
-    liveManager.shutdown(),
-    snapshotManager.shutdown(),
-    pdfGenerator.shutdown(),
-    wsManager.shutdown(),
-    USE_REDIS ? redisManager.shutdown() : Promise.resolve()
-  ]);
+  process.on('SIGINT', async () => {
+    logger.info('SIGINT received, shutting down gracefully');
+    
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
 
-  process.exit(0);
-});
+    await Promise.all([
+      liveManager.shutdown(),
+      snapshotManager.shutdown(),
+      pdfGenerator.shutdown(),
+      wsManager.shutdown(),
+      USE_REDIS ? redisManager.shutdown() : Promise.resolve()
+    ]);
+
+    process.exit(0);
+  });
+}
+
+// Export app for serverless environments (Vercel, AWS Lambda, etc.)
+module.exports = app;
