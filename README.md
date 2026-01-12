@@ -161,3 +161,152 @@ This repository currently focuses on **design and documentation** for the multi-
 ## License
 
 Add a license file if/when you decide the project’s licensing (MIT/Apache-2.0/etc.).
+
+## Quick Start
+
+### Prerequisites
+- Node.js (v14 or higher)
+- npm
+
+### Installation & Running
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/mufthakherul/Headless-web.git
+   cd Headless-web
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the server:
+   ```bash
+   npm start
+   ```
+
+4. Open your browser and navigate to:
+   ```
+   http://localhost:3000
+   ```
+
+The server will start on port 3000 by default (or the port specified in the `PORT` environment variable).
+
+---
+
+## Implementation Status
+
+### ✅ Currently Implemented (Scaffold Phase)
+
+**Server Infrastructure:**
+- ✅ Node.js/Express server setup
+- ✅ All API endpoints defined with route stubs
+- ✅ Session ID generation (basic placeholder)
+- ✅ Configuration structure for SSRF protection
+- ✅ Configuration structure for rate limiting
+- ✅ Health check endpoint (`/health`)
+
+**Frontend UI:**
+- ✅ Simple, clean HTML/CSS/JS interface
+- ✅ URL input bar
+- ✅ Mode selector with all 7 public modes:
+  - Fast (Proxy)
+  - Fast+ (Proxy Optimized)
+  - Reader
+  - Text-only
+  - Snapshot (View-only)
+  - Live (Interactive)
+  - Full Desktop (Maximum)
+- ✅ Auto mode toggle
+- ✅ Responsive design compatible with older browsers (Chrome 75+)
+
+**API Endpoints (Stubs):**
+- ✅ `GET /` — Main UI page
+- ✅ `GET /go` — Start session/tab
+- ✅ `GET /proxy` — Proxy rewrite (placeholder)
+- ✅ `GET /reader` — Reader mode (placeholder)
+- ✅ `GET /text` — Text-only mode (placeholder)
+- ✅ `POST /live/start` — Live mode start (placeholder)
+- ✅ `GET /live/frame` — Frame capture (placeholder)
+- ✅ `POST /live/input` — Input forwarding (placeholder)
+- ✅ `POST /snapshot/create` — Snapshot creation (placeholder)
+- ✅ `GET /snapshot/view` — Snapshot viewing (placeholder)
+- ✅ `GET /desktop` — Remote desktop (placeholder)
+
+### 🚧 Next Steps (Prioritized)
+
+**Phase 1: Security Hardening**
+- [ ] Implement SSRF protection
+  - [ ] IP range validation (block private ranges)
+  - [ ] Localhost blocking
+  - [ ] Metadata endpoint blocking (169.254.169.254)
+- [ ] Implement rate limiting middleware
+  - [ ] Per-IP tracking
+  - [ ] Per-session tracking
+  - [ ] Request throttling
+- [ ] Add domain allowlist/denylist support
+- [ ] Implement secure session ID generation (crypto)
+- [ ] Add logging and abuse monitoring
+
+**Phase 2: Basic Proxy Implementation (Fast Mode)**
+- [ ] HTTP/HTTPS fetching with proper headers
+- [ ] HTML rewriting (href, src, action attributes)
+- [ ] CSS rewriting (url(...) patterns)
+- [ ] Cookie mapping and isolation
+- [ ] Redirect handling
+- [ ] Basic error handling
+
+**Phase 3: Optimization Layer (Fast+ Mode)**
+- [ ] Image transcoding/compression
+- [ ] Script stripping/deferral options
+- [ ] Resource caching
+- [ ] Gzip compression enforcement
+- [ ] Ad/tracker blocking (optional)
+
+**Phase 4: Content Extraction (Reader & Text-only Modes)**
+- [ ] Integrate readability algorithm
+- [ ] Article extraction logic
+- [ ] Clean template generation
+- [ ] Text-only rendering with minimal markup
+- [ ] Link list generation
+
+**Phase 5: Headless Browser Integration (Snapshot & Live Modes)**
+- [ ] Install and configure Playwright/Puppeteer
+- [ ] Implement snapshot capture (HTML + HAR)
+- [ ] Implement live session management
+- [ ] Screenshot/screencast capture
+- [ ] Input event forwarding (mouse, keyboard)
+- [ ] Browser context isolation per session
+- [ ] Resource cleanup and timeout handling
+
+**Phase 6: Remote Desktop Mode**
+- [ ] Container/VM setup for isolation
+- [ ] Guacamole or noVNC integration
+- [ ] VNC/RDP streaming configuration
+- [ ] Per-user session management
+- [ ] Resource limits and cleanup
+
+**Phase 7: Fallback Controller**
+- [ ] Auto mode logic
+- [ ] Mode escalation triggers
+- [ ] Fallback decision engine
+- [ ] User notification system
+
+### 📝 Important Notes
+
+**Current Limitations:**
+- All route handlers return placeholder JSON responses
+- No actual web proxying or browser automation is implemented
+- SSRF protection and rate limiting are structural placeholders only
+- Session management is basic in-memory only (no persistence)
+- No real security hardening yet
+
+**Before Production Use:**
+- Complete security implementation (SSRF, rate limiting, session isolation)
+- Add comprehensive error handling
+- Implement proper logging
+- Add monitoring and alerting
+- Consider using Redis or similar for session storage
+- Add authentication/authorization if needed
+- Load testing and resource optimization
