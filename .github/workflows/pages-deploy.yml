@@ -29,11 +29,12 @@ jobs:
       - name: Create static build directory
         run: |
           mkdir -p build
-          # Copy only frontend files for static hosting
-          cp -r public/* build/ 2>/dev/null || cp -r web/* build/
+          # Copy frontend HTML files from root
+          cp index.html build/ 2>/dev/null || true
+          cp live.html build/ 2>/dev/null || true
           cp README.md build/ 2>/dev/null || true
           echo "⚠️ Note: This is a static deployment. Backend APIs are not available." > build/DEPLOYMENT_INFO.txt
-          echo "For full functionality, deploy to Vercel or use Docker." >> build/DEPLOYMENT_INFO.txt
+          echo "For full functionality, deploy to Vercel, Render, or use Docker." >> build/DEPLOYMENT_INFO.txt
           
       - name: Create .nojekyll
         run: touch build/.nojekyll
