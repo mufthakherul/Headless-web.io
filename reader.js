@@ -7,6 +7,7 @@ const axios = require('axios');
 const { JSDOM } = require('jsdom');
 const { Readability } = require('@mozilla/readability');
 const logger = require('./logger');
+const { USER_AGENT, REQUEST_TIMEOUT } = require('./config');
 
 /**
  * Extract readable content from URL
@@ -18,9 +19,9 @@ async function extractContent(targetUrl) {
     // Fetch the URL
     const response = await axios.get(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': USER_AGENT
       },
-      timeout: 15000
+      timeout: REQUEST_TIMEOUT
     });
 
     // Parse with JSDOM
