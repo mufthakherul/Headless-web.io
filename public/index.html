@@ -569,6 +569,7 @@
                         <input type="text" id="url" name="url" placeholder="https://example.com" required>
                         <button type="submit" class="btn-primary">🚀 Browse</button>
                     </div>
+                    <div id="quick-access"></div>
                 </div>
 
                 <div class="form-group">
@@ -776,6 +777,110 @@
             document.getElementById('statsModal').style.display = 'none';
         }
 
+        // Session history management
+        const HistoryManager = {
+            KEY: 'headless_history',
+            MAX_ITEMS: 10,
+
+            add(url, mode) {
+                const history = this.get();
+                history.unshift({
+                    url,
+                    mode,
+                    timestamp: new Date().toLocaleString()
+                });
+                localStorage.setItem(this.KEY, JSON.stringify(history.slice(0, this.MAX_ITEMS)));
+            },
+
+            get() {
+                const data = localStorage.getItem(this.KEY);
+                return data ? JSON.parse(data) : [];
+            },
+
+            clear() {
+                localStorage.removeItem(this.KEY);
+            },
+
+            renderQuickAccess() {
+                const history = this.get();
+                const container = document.getElementById('quick-access');
+                
+                if (history.length === 0) {
+                    container.innerHTML = '<p style="color: #999; font-size: 13px;">No recent sessions</p>';
+                    return;
+                }
+
+                container.innerHTML = history.slice(0, 5).map(item => `
+                    <button class="quick-btn" title="${item.url}" onclick="
+                        document.getElementById('url').value = '${item.url.replace(/'/g, "\\'")}';
+                        document.getElementById('mode').value = '${item.mode}';
+                    ">
+                        <span class="mode-badge">${item.mode[0].toUpperCase()}</span>
+                        <div class="quick-text">
+                            <div class="quick-url">${new URL(item.url).hostname}</div>
+                            <div class="quick-time">${item.timestamp.split(' ')[0]}</div>
+                        </div>
+                    </button>
+                `).join('');
+            }
+        };
+
+        // Add CSS for quick access
+        const style = document.createElement('style');
+        style.textContent = `
+            #quick-access {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid var(--border);
+            }
+
+            .quick-btn {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                padding: 8px 12px;
+                border-radius: 6px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12px;
+                color: var(--text-primary);
+                transition: all 0.2s;
+            }
+
+            .quick-btn:hover {
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
+            }
+
+            .mode-badge {
+                background: var(--primary);
+                color: white;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+
+            .quick-text {
+                text-align: left;
+            }
+
+            .quick-url {
+                font-weight: 500;
+            }
+
+            .quick-time {
+                opacity: 0.7;
+                font-size: 11px;
+            }
+        `;
+        document.head.appendChild(style);
+
         document.getElementById('browseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -796,6 +901,10 @@
                 }
 
                 const sid = sessionData.sessionId;
+
+                // Track in history
+                HistoryManager.add(url, selectedMode);
+                HistoryManager.renderQuickAccess();
 
                 // Handle different modes
                 let finalUrl;
@@ -887,6 +996,15 @@
                 closeStats();
             }
         };
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            HistoryManager.renderQuickAccess();
+        });
+    </script>
+</body>
+
+</html>
     </script>
 </body>
 
