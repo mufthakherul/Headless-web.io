@@ -1,6 +1,6 @@
 {
   "name": "headless-web",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Advanced web-based headless browsing gateway with multiple compatibility modes including Live Mode, Snapshots, and PDF generation",
   "main": "server.js",
   "scripts": {
@@ -28,7 +28,10 @@
     "@mozilla/readability": "^0.6.0",
     "axios": "^1.13.2",
     "cheerio": "^1.1.2",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
+    "helmet": "^8.1.0",
     "ioredis": "^5.9.1",
     "jsdom": "^27.4.0",
     "playwright": "^1.57.0",
