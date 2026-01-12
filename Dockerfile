@@ -1,5 +1,5 @@
-# Use Node.js 18 LTS
-FROM node:18-alpine
+# Use Node.js 20 LTS to satisfy engines for jsdom/undici/etc.
+FROM node:20-alpine
 
 # Install Playwright dependencies
 RUN apk add --no-cache \
