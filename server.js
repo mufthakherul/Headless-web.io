@@ -2,6 +2,9 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
+const helmet = require('helmet');
+const compression = require('compression');
+const cors = require('cors');
 const { ssrfProtectionMiddleware } = require('./security');
 const { rateLimitMiddleware, sessionRateLimitMiddleware } = require('./rateLimit');
 const logger = require('./logger');
@@ -20,17 +23,83 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const USE_REDIS = process.env.USE_REDIS === 'true';
 
+// Security middleware - Helmet.js for secure headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled for now to allow inline scripts
+  crossOriginEmbedderPolicy: false
+}));
+
+// Compression middleware for better performance
+app.use(compression());
+
+// CORS configuration for API access
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'web')));
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
 
-// Logging middleware
+// Request metrics tracking
+const metrics = {
+  requests: {
+    total: 0,
+    byMethod: {},
+    byPath: {},
+    byStatus: {},
+    errors: 0
+  },
+  startTime: Date.now()
+};
+
+// Logging and metrics middleware
 app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  // Log request
   logger.request(req);
+  
+  // Track metrics
+  metrics.requests.total++;
+  metrics.requests.byMethod[req.method] = (metrics.requests.byMethod[req.method] || 0) + 1;
+  
+  // Capture response to track status codes
+  const originalSend = res.send;
+  res.send = function(data) {
+    const statusCode = res.statusCode;
+    metrics.requests.byStatus[statusCode] = (metrics.requests.byStatus[statusCode] || 0) + 1;
+    
+    if (statusCode >= 400) {
+      metrics.requests.errors++;
+    }
+    
+    // Track path metrics
+    const pathKey = req.path || 'unknown';
+    if (!metrics.requests.byPath[pathKey]) {
+      metrics.requests.byPath[pathKey] = { count: 0, totalTime: 0, avgTime: 0 };
+    }
+    metrics.requests.byPath[pathKey].count++;
+    
+    const responseTime = Date.now() - startTime;
+    metrics.requests.byPath[pathKey].totalTime += responseTime;
+    metrics.requests.byPath[pathKey].avgTime = Math.round(
+      metrics.requests.byPath[pathKey].totalTime / metrics.requests.byPath[pathKey].count
+    );
+    
+    // Add response time header
+    res.setHeader('X-Response-Time', `${responseTime}ms`);
+    
+    return originalSend.call(this, data);
+  };
+  
   next();
 });
 
@@ -64,12 +133,12 @@ function generateSessionId() {
 
 // Main UI page
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'web', 'index.html'));
 });
 
 // Live mode viewer page (rate limited by global middleware)
 app.get('/live', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'live.html'));
+  res.sendFile(path.join(__dirname, 'web', 'live.html'));
 });
 
 // Start a new session/tab (with SSRF protection and session rate limiting)
@@ -422,8 +491,19 @@ app.get('/stats', async (req, res) => {
     const stats = {
       server: {
         uptime: process.uptime(),
+        uptimeFormatted: formatUptime(process.uptime()),
         memory: process.memoryUsage(),
-        activeSessions: sessions.size
+        activeSessions: sessions.size,
+        startTime: new Date(metrics.startTime).toISOString()
+      },
+      requests: {
+        total: metrics.requests.total,
+        byMethod: metrics.requests.byMethod,
+        byStatus: metrics.requests.byStatus,
+        errors: metrics.requests.errors,
+        errorRate: metrics.requests.total > 0 
+          ? ((metrics.requests.errors / metrics.requests.total) * 100).toFixed(2) + '%'
+          : '0%'
       },
       liveMode: liveManager.getStats(),
       snapshot: snapshotManager.getStats(),
@@ -444,6 +524,52 @@ app.get('/stats', async (req, res) => {
     });
   }
 });
+
+// Metrics endpoint (detailed request metrics)
+app.get('/metrics', (req, res) => {
+  const topPaths = Object.entries(metrics.requests.byPath)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 10)
+    .map(([path, data]) => ({
+      path,
+      requests: data.count,
+      avgResponseTime: data.avgTime + 'ms'
+    }));
+
+  res.json({
+    uptime: process.uptime(),
+    uptimeFormatted: formatUptime(process.uptime()),
+    totalRequests: metrics.requests.total,
+    requestsByMethod: metrics.requests.byMethod,
+    requestsByStatus: metrics.requests.byStatus,
+    errorCount: metrics.requests.errors,
+    errorRate: metrics.requests.total > 0 
+      ? ((metrics.requests.errors / metrics.requests.total) * 100).toFixed(2) + '%'
+      : '0%',
+    topEndpoints: topPaths,
+    memory: {
+      rss: Math.round(process.memoryUsage().rss / 1024 / 1024) + ' MB',
+      heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+      heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+    }
+  });
+});
+
+// Helper function to format uptime
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+  
+  return parts.join(' ');
+}
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -471,83 +597,280 @@ app.get('/health', async (req, res) => {
   res.json(health);
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
+// API Documentation endpoint
+app.get('/api/docs', (req, res) => {
+  const apiDocs = {
+    title: 'Headless-web Gateway API Documentation',
+    version: '2.0.0',
+    description: 'Advanced web-based headless browsing gateway with multiple compatibility modes',
+    baseUrl: `${req.protocol}://${req.get('host')}`,
+    endpoints: {
+      session: {
+        'GET /go': {
+          description: 'Start a new browsing session',
+          parameters: {
+            url: { type: 'string', required: true, description: 'Target URL to browse' },
+            mode: { type: 'string', required: false, default: 'fast', options: ['fast', 'reader', 'text', 'live', 'snapshot'] }
+          },
+          response: { sessionId: 'string', url: 'string', mode: 'string' },
+          example: '/go?url=https://example.com&mode=fast'
+        }
+      },
+      proxy: {
+        'GET /proxy': {
+          description: 'Fast mode - Server-side fetch with HTML rewriting',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID from /go' },
+            url: { type: 'string', required: true, description: 'URL to fetch' }
+          },
+          response: 'HTML content',
+          example: '/proxy?sid=session_xxx&url=https://example.com'
+        }
+      },
+      reader: {
+        'GET /reader': {
+          description: 'Reader mode - Clean article extraction',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID' },
+            url: { type: 'string', required: true, description: 'Article URL' }
+          },
+          response: 'Readable HTML',
+          example: '/reader?sid=session_xxx&url=https://example.com/article'
+        }
+      },
+      text: {
+        'GET /text': {
+          description: 'Text-only mode - Minimal bandwidth',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID' },
+            url: { type: 'string', required: true, description: 'URL to convert' }
+          },
+          response: 'Text-only HTML',
+          example: '/text?sid=session_xxx&url=https://example.com'
+        }
+      },
+      live: {
+        'POST /live/start': {
+          description: 'Start interactive browser session (Playwright)',
+          parameters: {
+            url: { type: 'string', required: true, description: 'URL to load' },
+            sessionId: { type: 'string', required: true, description: 'Session ID' }
+          },
+          response: { success: true, mode: 'live', viewport: 'object' },
+          example: 'POST /live/start with JSON body'
+        },
+        'GET /live/frame': {
+          description: 'Get current frame/screenshot from live session',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID' }
+          },
+          response: 'PNG image',
+          example: '/live/frame?sid=session_xxx'
+        },
+        'POST /live/input': {
+          description: 'Send input events to live session',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Session ID' },
+            event: { type: 'object', required: true, description: 'Input event data' }
+          },
+          response: { success: true },
+          example: 'POST /live/input with JSON body'
+        }
+      },
+      snapshot: {
+        'POST /snapshot/create': {
+          description: 'Create page snapshot',
+          parameters: {
+            url: { type: 'string', required: true, description: 'URL to snapshot' },
+            fullPage: { type: 'boolean', required: false, default: false }
+          },
+          response: { snapshotId: 'string', snapshot: 'object' },
+          example: 'POST /snapshot/create with JSON body'
+        },
+        'GET /snapshot/view': {
+          description: 'View saved snapshot',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Snapshot ID' }
+          },
+          response: 'HTML content',
+          example: '/snapshot/view?sid=snapshot_xxx'
+        },
+        'GET /snapshot/list': {
+          description: 'List all snapshots',
+          response: { snapshots: 'array', count: 'number' },
+          example: '/snapshot/list'
+        },
+        'GET /snapshot/screenshot': {
+          description: 'Get snapshot screenshot',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Snapshot ID' }
+          },
+          response: 'PNG image',
+          example: '/snapshot/screenshot?sid=snapshot_xxx'
+        }
+      },
+      pdf: {
+        'GET /pdf/generate': {
+          description: 'Generate PDF from URL using reader mode',
+          parameters: {
+            url: { type: 'string', required: true, description: 'URL to convert to PDF' }
+          },
+          response: 'PDF file',
+          example: '/pdf/generate?url=https://example.com/article'
+        }
+      },
+      monitoring: {
+        'GET /health': {
+          description: 'Health check endpoint',
+          response: { status: 'ok', timestamp: 'ISO-8601', features: 'object' },
+          example: '/health'
+        },
+        'GET /stats': {
+          description: 'Server statistics with comprehensive metrics',
+          response: { server: 'object', requests: 'object', liveMode: 'object', snapshot: 'object' },
+          example: '/stats'
+        },
+        'GET /metrics': {
+          description: 'Detailed request metrics and performance data',
+          response: { uptime: 'number', totalRequests: 'number', topEndpoints: 'array', memory: 'object' },
+          example: '/metrics'
+        }
+      }
+    },
+    security: {
+      ssrf: 'SSRF protection prevents access to internal/private networks',
+      rateLimit: '60 requests per minute per IP address',
+      sessionValidation: 'All requests require valid session IDs',
+      logging: 'Comprehensive logging of all requests'
+    },
+    features: [
+      'Multiple browsing modes (Fast, Reader, Text-only, Live, Snapshot)',
+      'PDF generation from articles',
+      'WebSocket support for real-time updates',
+      'Cookie management',
+      'Session persistence',
+      'Rate limiting',
+      'SSRF protection',
+      'Compression for better performance',
+      'CORS support for API access'
+    ]
+  };
+
+  res.json(apiDocs);
 });
 
-// Error handler
+// 404 handler
+app.use((req, res) => {
+  logger.warn('404 Not Found', { 
+    method: req.method, 
+    url: req.url, 
+    ip: req.ip 
+  });
+  res.status(404).json({ 
+    error: 'Not found',
+    message: `The endpoint ${req.method} ${req.url} does not exist`,
+    suggestion: 'Check /api/docs for available endpoints',
+    documentation: '/api/docs'
+  });
+});
+
+// Error handler with better error messages
 app.use((err, req, res, next) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   logger.error('Unhandled error', { 
     error: err.message, 
     stack: err.stack,
-    url: req.url 
+    url: req.url,
+    method: req.method,
+    ip: req.ip
   });
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// Start server
-server.listen(PORT, () => {
-  logger.info(`Headless-web server started on port ${PORT}`);
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`🚀 Headless-web Gateway Server`);
-  console.log(`${'='.repeat(60)}`);
-  console.log(`\n📡 Server: http://localhost:${PORT}`);
-  console.log(`\n✅ Advanced Features Enabled:`);
-  console.log('   ⚡ Fast Mode (Proxy) - Server-side fetch + rewrite');
-  console.log('   📖 Reader Mode - Article extraction');
-  console.log('   📝 Text-only Mode - Minimal bandwidth');
-  console.log('   🎮 Live Mode (Playwright) - Interactive browser sessions');
-  console.log('   📸 Snapshot Mode - Capture and replay with HAR');
-  console.log('   📄 PDF Generation - Convert reader mode to PDF');
-  console.log('   🔌 WebSocket Support - Real-time updates (/ws/live)');
-  console.log('   🍪 Cookie Management - Persistent cookie storage');
-  console.log(`   ${USE_REDIS ? '✅' : '⚠️'} Redis - ${USE_REDIS ? 'Distributed sessions enabled' : 'Using in-memory storage'}`);
-  console.log('\n🔒 Security:');
-  console.log('   - SSRF protection active');
-  console.log('   - Rate limiting active (60 req/min per IP)');
-  console.log('   - Session validation active');
-  console.log('   - Comprehensive logging enabled');
-  console.log('\n⚠️  Note: Desktop mode (noVNC/Guacamole) requires additional setup');
-  console.log('\n📚 Documentation: See README.md and docs/ folder');
-  console.log(`${'='.repeat(60)}\n`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM received, shutting down gracefully');
   
-  // Close server
-  server.close(() => {
-    logger.info('HTTP server closed');
-  });
-
-  // Cleanup managers
-  await Promise.all([
-    liveManager.shutdown(),
-    snapshotManager.shutdown(),
-    pdfGenerator.shutdown(),
-    wsManager.shutdown(),
-    USE_REDIS ? redisManager.shutdown() : Promise.resolve()
-  ]);
-
-  process.exit(0);
+  // Send different responses based on environment
+  if (isProduction) {
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: 'An unexpected error occurred. Please try again later.',
+      requestId: crypto.randomBytes(8).toString('hex'),
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: err.message,
+      stack: err.stack,
+      url: req.url
+    });
+  }
 });
 
-process.on('SIGINT', async () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  
-  server.close(() => {
-    logger.info('HTTP server closed');
+// Start server (only if not in serverless environment)
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  server.listen(PORT, () => {
+    logger.info(`Headless-web server started on port ${PORT}`);
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`🚀 Headless-web Gateway Server`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`\n📡 Server: http://localhost:${PORT}`);
+    console.log(`\n✅ Advanced Features Enabled:`);
+    console.log('   ⚡ Fast Mode (Proxy) - Server-side fetch + rewrite');
+    console.log('   📖 Reader Mode - Article extraction');
+    console.log('   📝 Text-only Mode - Minimal bandwidth');
+    console.log('   🎮 Live Mode (Playwright) - Interactive browser sessions');
+    console.log('   📸 Snapshot Mode - Capture and replay with HAR');
+    console.log('   📄 PDF Generation - Convert reader mode to PDF');
+    console.log('   🔌 WebSocket Support - Real-time updates (/ws/live)');
+    console.log('   🍪 Cookie Management - Persistent cookie storage');
+    console.log(`   ${USE_REDIS ? '✅' : '⚠️'} Redis - ${USE_REDIS ? 'Distributed sessions enabled' : 'Using in-memory storage'}`);
+    console.log('\n🔒 Security:');
+    console.log('   - SSRF protection active');
+    console.log('   - Rate limiting active (60 req/min per IP)');
+    console.log('   - Session validation active');
+    console.log('   - Comprehensive logging enabled');
+    console.log('\n⚠️  Note: Desktop mode (noVNC/Guacamole) requires additional setup');
+    console.log('\n📚 Documentation: See README.md and docs/ folder');
+    console.log(`${'='.repeat(60)}\n`);
   });
 
-  await Promise.all([
-    liveManager.shutdown(),
-    snapshotManager.shutdown(),
-    pdfGenerator.shutdown(),
-    wsManager.shutdown(),
-    USE_REDIS ? redisManager.shutdown() : Promise.resolve()
-  ]);
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    logger.info('SIGTERM received, shutting down gracefully');
+    
+    // Close server
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
 
-  process.exit(0);
-});
+    // Cleanup managers
+    await Promise.all([
+      liveManager.shutdown(),
+      snapshotManager.shutdown(),
+      pdfGenerator.shutdown(),
+      wsManager.shutdown(),
+      USE_REDIS ? redisManager.shutdown() : Promise.resolve()
+    ]);
+
+    process.exit(0);
+  });
+
+  process.on('SIGINT', async () => {
+    logger.info('SIGINT received, shutting down gracefully');
+    
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
+
+    await Promise.all([
+      liveManager.shutdown(),
+      snapshotManager.shutdown(),
+      pdfGenerator.shutdown(),
+      wsManager.shutdown(),
+      USE_REDIS ? redisManager.shutdown() : Promise.resolve()
+    ]);
+
+    process.exit(0);
+  });
+}
+
+// Export app for serverless environments (Vercel, AWS Lambda, etc.)
+module.exports = app;
