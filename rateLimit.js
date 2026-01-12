@@ -22,6 +22,10 @@ const config = {
 
 /**
  * Get client IP address from request
+ * SECURITY NOTE: X-Forwarded-For and X-Real-IP headers can be spoofed.
+ * In production, ensure your load balancer/reverse proxy is trusted and
+ * properly configured to strip/overwrite these headers to prevent IP spoofing.
+ * Consider using a middleware like 'express-rate-limit' with a trusted proxy configuration.
  */
 function getClientIP(req) {
   return req.headers['x-forwarded-for']?.split(',')[0].trim() ||
