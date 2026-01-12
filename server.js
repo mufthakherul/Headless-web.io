@@ -43,7 +43,10 @@ app.use(cors({
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Serve static files from web directory for backward compatibility
 app.use(express.static(path.join(__dirname, 'web')));
+// Serve static files from public directory if it exists
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
@@ -133,12 +136,12 @@ function generateSessionId() {
 
 // Main UI page
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'web', 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Live mode viewer page (rate limited by global middleware)
 app.get('/live', (req, res) => {
-  res.sendFile(path.join(__dirname, 'web', 'live.html'));
+  res.sendFile(path.join(__dirname, 'live.html'));
 });
 
 // Start a new session/tab (with SSRF protection and session rate limiting)
