@@ -511,53 +511,88 @@
                     const container = document.getElementById('providers');
                     container.innerHTML = '';
 
+                    let defaultProvider = null;
+                    let hasAvailableProviders = false;
+
                     data.providers.forEach(provider => {
                         if (provider.available) {
-                            providers[provider.name] = provider.models;
+                            hasAvailableProviders = true;
+                            providers[provider.id] = provider.models;
 
                             const btn = document.createElement('button');
                             btn.className = 'provider-btn';
                             btn.textContent = provider.name.toUpperCase();
-                            btn.onclick = () => selectProvider(provider.name, provider.models);
+                            btn.setAttribute('data-provider-id', provider.id);
+                            btn.onclick = () => selectProvider(provider.id, provider.models, provider.name);
                             container.appendChild(btn);
+
+                            // Track default provider (Gemini)
+                            if (provider.default) {
+                                defaultProvider = { id: provider.id, models: provider.models, name: provider.name };
+                            }
                         }
                     });
+
+                    // Auto-select default provider if available
+                    if (defaultProvider) {
+                        setTimeout(() => {
+                            const btn = container.querySelector(`[data-provider-id="${defaultProvider.id}"]`);
+                            if (btn) {
+                                btn.click();
+                            }
+                        }, 100);
+                    }
+
+                    // Show message if no providers available
+                    if (!hasAvailableProviders) {
+                        container.innerHTML = '<div style="padding: 15px; text-align: center; color: var(--text-secondary);">⚠️ No AI providers configured.<br>Please add API keys in .env file.</div>';
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load providers:', error);
+                const container = document.getElementById('providers');
+                container.innerHTML = '<div style="padding: 15px; text-align: center; color: var(--error);">❌ Failed to load providers.<br>Please refresh the page.</div>';
             }
         }
 
         // Select provider
-        function selectProvider(name, models) {
-            currentProvider = name;
+        function selectProvider(providerId, models, displayName) {
+            currentProvider = providerId;
             currentSessionId = `session_${Date.now()}`;
             messageHistory = [];
 
             // Update UI
             document.querySelectorAll('.provider-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            const activeBtn = document.querySelector(`[data-provider-id="${providerId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
 
             // Update model selector
             const modelSelector = document.getElementById('model-selector');
             modelSelector.innerHTML = '';
-            models.forEach(model => {
+            models.forEach((model, index) => {
                 const option = document.createElement('option');
                 option.value = model;
                 option.textContent = model;
+                if (index === 0) {
+                    option.selected = true;
+                }
                 modelSelector.appendChild(option);
             });
             modelSelector.onchange = (e) => currentModel = e.target.value;
             currentModel = models[0];
-            modelSelector.value = models[0];
 
             // Clear messages and enable input
             const messagesEl = document.getElementById('messages');
             messagesEl.innerHTML = '';
 
-            document.getElementById('chat-title').textContent = `💬 ${name.charAt(0).toUpperCase() + name.slice(1)}`;
+            document.getElementById('chat-title').textContent = `💬 ${displayName}`;
             document.getElementById('message-input').disabled = false;
             document.getElementById('send-btn').disabled = false;
+            
+            // Focus on input
+            document.getElementById('message-input').focus();
         }
 
         // Send message

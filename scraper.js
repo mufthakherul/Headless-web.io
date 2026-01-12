@@ -183,15 +183,32 @@ class ScraperManager {
                 url,
                 title: info.videoDetails.title,
                 format,
+                quality,
                 status: 'downloading',
                 progress: 0,
                 startedAt: Date.now()
             });
 
-            // Download options
-            const downloadOptions = format === 'audio'
-                ? { quality: 'highestaudio', filter: 'audioonly' }
-                : { quality: quality === 'highest' ? 'highestvideo' : quality };
+            // Better download options based on quality
+            let downloadOptions;
+            if (format === 'audio') {
+                downloadOptions = { 
+                    quality: 'highestaudio', 
+                    filter: 'audioonly'
+                };
+            } else {
+                // Video quality mapping
+                const qualityMap = {
+                    'highest': 'highestvideo',
+                    'high': '720p',
+                    'medium': '480p',
+                    'low': '360p'
+                };
+                downloadOptions = { 
+                    quality: qualityMap[quality] || 'highest',
+                    filter: 'videoandaudio'
+                };
+            }
 
             // Start download
             const stream = ytdl(url, downloadOptions);
@@ -243,7 +260,9 @@ class ScraperManager {
                         filepath,
                         size: stats.size,
                         title: info.videoDetails.title,
-                        duration: info.videoDetails.lengthSeconds
+                        duration: info.videoDetails.lengthSeconds,
+                        quality: quality,
+                        format: format
                     });
                 });
 
