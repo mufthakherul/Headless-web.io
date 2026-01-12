@@ -98,9 +98,13 @@ async function validateURL(urlString) {
       }
     } catch (dnsError) {
       // If DNS resolution fails, we block it for safety
+      // In production, keep error messages generic to avoid information disclosure
+      const isDevelopment = process.env.NODE_ENV === 'development';
       return {
         valid: false,
-        error: 'Unable to resolve hostname'
+        error: isDevelopment 
+          ? `Unable to resolve hostname: ${dnsError.message}`
+          : 'Unable to resolve hostname'
       };
     }
 
