@@ -618,10 +618,11 @@
                         </div>
 
                         <div class="mode-card" data-mode="desktop" onclick="selectMode('desktop')">
-                            <span class="mode-badge badge-planned">PLANNED</span>
+                            <span class="mode-badge badge-new">NEW</span>
                             <div class="mode-icon">🖥️</div>
-                            <div class="mode-title">Full Desktop</div>
-                            <div class="mode-description">Complete desktop browser via VNC/noVNC. Requires setup.</div>
+                            <div class="mode-title">Desktop Mode</div>
+                            <div class="mode-description">Enhanced browser with full page captures, viewport resizing,
+                                and JavaScript execution.</div>
                         </div>
                     </div>
                 </div>
@@ -975,6 +976,35 @@
                         { label: '📸 View Snapshot Again', url: finalUrl },
                         { label: '🖼️ View Screenshot', url: `/snapshot/screenshot?sid=${snapshotData.snapshotId}` }
                     ];
+                } else if (selectedMode === 'desktop') {
+                    // Start desktop session
+                    const desktopResponse = await fetch('/desktop/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: sid, url })
+                    });
+
+                    if (!desktopResponse.ok) {
+                        const errorData = await desktopResponse.json();
+                        throw new Error(errorData.message || 'Failed to start desktop session');
+                    }
+
+                    const desktopData = await desktopResponse.json();
+
+                    if (!desktopData.success) {
+                        throw new Error(desktopData.message || 'Desktop session startup failed');
+                    }
+
+                    const desktopSid = desktopData.desktopSessionId;
+                    finalUrl = `/desktop-viewer?sid=${desktopSid}`;
+
+                    // Open desktop viewer
+                    window.open(finalUrl, '_blank');
+
+                    actions = [
+                        { label: '🖥️ Open Desktop Again', url: finalUrl },
+                        { label: '📊 View Statistics', url: `/desktop/stats?sid=${desktopSid}` }
+                    ];
                 }
 
                 loading.style.display = 'none';
@@ -1062,6 +1092,38 @@
         document.addEventListener('DOMContentLoaded', () => {
             HistoryManager.renderQuickAccess();
             Toast.info('Welcome to Headless-web! 🌐');
+
+            // Setup keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                // Ctrl+Shift+H: Focus on URL input
+                if (e.ctrlKey && e.shiftKey && e.code === 'KeyH') {
+                    e.preventDefault();
+                    document.getElementById('url').focus();
+                    Toast.info('💡 Tip: Use Ctrl+Enter to submit');
+                }
+
+                // Ctrl+Enter: Submit form
+                if (e.ctrlKey && e.code === 'Enter' && document.activeElement.id === 'url') {
+                    e.preventDefault();
+                    document.getElementById('browseForm').dispatchEvent(new Event('submit'));
+                }
+
+                // Ctrl+K: Open keyboard shortcuts menu
+                if (e.ctrlKey && e.code === 'KeyK') {
+                    e.preventDefault();
+                    Toast.info('⌨️ Shortcuts: Ctrl+Shift+H (focus URL), Ctrl+Enter (submit), Ctrl+T (clear history)');
+                }
+
+                // Ctrl+T: Clear history
+                if (e.ctrlKey && e.code === 'KeyT') {
+                    e.preventDefault();
+                    if (confirm('Clear browsing history?')) {
+                        HistoryManager.clear();
+                        HistoryManager.renderQuickAccess();
+                        Toast.success('History cleared!');
+                    }
+                }
+            });
         });
     </script>
 </body>

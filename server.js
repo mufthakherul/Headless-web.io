@@ -28,6 +28,7 @@ const { extractContent, generateReaderHTML } = require('./reader');
 const { convertToTextOnly, generateTextOnlyHTML } = require('./textOnly');
 const liveManager = require('./liveMode');
 const snapshotManager = require('./snapshotMode');
+const desktopMode = require('./desktopMode');
 const cookieManager = require('./cookieManager');
 const pdfGenerator = require('./pdfGenerator');
 const wsManager = require('./websocketManager');
@@ -260,6 +261,11 @@ app.get('/', (req, res) => {
 // Live mode viewer page (rate limited by global middleware)
 app.get('/live', (req, res) => {
   res.sendFile(path.join(__dirname, 'live.html'));
+});
+
+// Desktop mode viewer page (rate limited by global middleware)
+app.get('/desktop-viewer', (req, res) => {
+  res.sendFile(path.join(__dirname, 'desktop-viewer.html'));
 });
 
 // Start a new session/tab (with SSRF protection and session rate limiting)
@@ -595,7 +601,242 @@ app.get('/snapshot/screenshot', async (req, res) => {
   }
 });
 
-// Remote Desktop mode: Full GUI browser
+// Remote Desktop mode: Full GUI browser with enhanced capabilities
+app.post('/desktop/start', sessionRateLimitMiddleware, ssrfProtectionMiddleware, async (req, res) => {
+  if (DISABLE_PLAYWRIGHT) {
+    return res.status(503).json({
+      error: 'Desktop mode not available',
+      message: 'Desktop mode requires Playwright which is disabled in serverless environments.',
+      suggestion: 'Try Live mode instead: /live/start'
+    });
+  }
+
+  const { url, sessionId } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  if (!sessionId || !sessions.has(sessionId)) {
+    return res.status(401).json({ error: 'Invalid or missing session ID' });
+  }
+
+  try {
+    const result = await desktopMode.startDesktopSession(sessionId, url, {
+      viewport: { width: 1920, height: 1080, deviceScaleFactor: 1 }
+    });
+
+    res.json({
+      success: true,
+      mode: 'desktop',
+      ...result
+    });
+  } catch (error) {
+    logger.error('Failed to start desktop session', { error: error.message, url, sessionId });
+    res.status(500).json({
+      error: 'Failed to start desktop session',
+      message: error.message
+    });
+  }
+});
+
+// Desktop mode: Capture full page screenshot
+app.get('/desktop/capture', async (req, res) => {
+  const { sid } = req.query;
+
+  if (!sid) {
+    return res.status(400).json({ error: 'Desktop session ID is required' });
+  }
+
+  try {
+    const result = await desktopMode.captureFullPage(sid);
+
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('X-Render-Time', result.metadata.renderTime);
+    res.send(result.screenshot);
+  } catch (error) {
+    logger.error('Failed to capture desktop page', { sid, error: error.message });
+    res.status(404).json({
+      error: 'Failed to capture page',
+      message: error.message
+    });
+  }
+});
+
+// Desktop mode: Get page content
+app.get('/desktop/content', async (req, res) => {
+  const { sid } = req.query;
+
+  if (!sid) {
+    return res.status(400).json({ error: 'Desktop session ID is required' });
+  }
+
+  try {
+    const result = await desktopMode.getPageContent(sid);
+
+    res.json({
+      success: true,
+      content: result.content,
+      url: result.url,
+      timestamp: result.timestamp
+    });
+  } catch (error) {
+    logger.error('Failed to get desktop page content', { sid, error: error.message });
+    res.status(404).json({
+      error: 'Failed to get page content',
+      message: error.message
+    });
+  }
+});
+
+// Desktop mode: Resize viewport
+app.post('/desktop/resize', async (req, res) => {
+  const { sid, width, height } = req.body;
+
+  if (!sid) {
+    return res.status(400).json({ error: 'Desktop session ID is required' });
+  }
+
+  if (!width || !height) {
+    return res.status(400).json({ error: 'Width and height are required' });
+  }
+
+  try {
+    const result = await desktopMode.resizeViewport(sid, width, height);
+
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    logger.error('Failed to resize desktop viewport', { sid, error: error.message });
+    res.status(400).json({
+      error: 'Failed to resize viewport',
+      message: error.message
+    });
+  }
+});
+
+// Desktop mode: Execute JavaScript
+app.post('/desktop/execute', async (req, res) => {
+  const { sid, script, args } = req.body;
+
+  if (!sid) {
+    return res.status(400).json({ error: 'Desktop session ID is required' });
+  }
+
+  if (!script) {
+    return res.status(400).json({ error: 'Script is required' });
+  }
+
+  try {
+    const result = await desktopMode.executeScript(sid, script, args || []);
+
+    res.json({
+      success: true,
+      result: result.result
+    });
+  } catch (error) {
+    logger.error('Failed to execute desktop script', { sid, error: error.message });
+    res.status(400).json({
+      error: 'Failed to execute script',
+      message: error.message
+    });
+  }
+});
+
+// Desktop mode: Get page metrics
+app.get('/desktop/metrics', async (req, res) => {
+  const { sid } = req.query;
+
+  if (!sid) {
+    return res.status(400).json({ error: 'Desktop session ID is required' });
+  }
+
+  try {
+    const result = await desktopMode.getPageMetrics(sid);
+
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    logger.error('Failed to get desktop metrics', { sid, error: error.message });
+    res.status(404).json({
+      error: 'Failed to get metrics',
+      message: error.message
+    });
+  }
+});
+
+// Desktop mode: Get session stats
+app.get('/desktop/stats', async (req, res) => {
+  const { sid } = req.query;
+
+  if (!sid) {
+    return res.status(400).json({ error: 'Desktop session ID is required' });
+  }
+
+  try {
+    const stats = desktopMode.getSessionStats(sid);
+
+    res.json({
+      success: true,
+      ...stats
+    });
+  } catch (error) {
+    logger.error('Failed to get desktop session stats', { sid, error: error.message });
+    res.status(404).json({
+      error: 'Session not found',
+      message: error.message
+    });
+  }
+});
+
+// Desktop mode: List all active sessions (monitoring)
+app.get('/desktop/sessions', (req, res) => {
+  try {
+    const sessions = desktopMode.getAllSessions();
+
+    res.json({
+      success: true,
+      sessions,
+      count: sessions.length
+    });
+  } catch (error) {
+    logger.error('Failed to list desktop sessions', { error: error.message });
+    res.status(500).json({
+      error: 'Failed to list sessions',
+      message: error.message
+    });
+  }
+});
+
+// Desktop mode: Close session
+app.post('/desktop/close', async (req, res) => {
+  const { sid } = req.body;
+
+  if (!sid) {
+    return res.status(400).json({ error: 'Desktop session ID is required' });
+  }
+
+  try {
+    const result = await desktopMode.closeDesktopSession(sid);
+
+    res.json({
+      success: true,
+      message: 'Desktop session closed'
+    });
+  } catch (error) {
+    logger.error('Failed to close desktop session', { sid, error: error.message });
+    res.status(404).json({
+      error: 'Failed to close session',
+      message: error.message
+    });
+  }
+});
+
+// Remote Desktop mode: Full GUI browser [ORIGINAL PLACEHOLDER - KEPT FOR REFERENCE]
 app.get('/desktop', (req, res) => {
   const { sid } = req.query;
 
@@ -604,22 +845,28 @@ app.get('/desktop', (req, res) => {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
 
-  // TODO: Start containerized desktop environment
-  // TODO: Launch Chromium in container
-  // TODO: Set up Guacamole/noVNC streaming
-  // TODO: Implement strong isolation
-
+  // Return info about desktop mode
   res.json({
     mode: 'desktop',
-    message: 'Remote desktop mode not yet implemented',
-    todo: [
-      'Set up container/VM infrastructure',
-      'Install Guacamole or noVNC',
-      'Configure VNC/RDP streaming',
-      'Implement per-session isolation',
-      'Handle cleanup and resource limits'
+    message: 'Desktop mode endpoint available',
+    note: 'Full remote desktop (noVNC/Guacamole) not yet implemented',
+    availableFeatures: [
+      'POST /desktop/start - Start desktop session',
+      'GET /desktop/capture - Full page screenshot',
+      'GET /desktop/content - Get page HTML',
+      'POST /desktop/resize - Resize viewport',
+      'POST /desktop/execute - Execute JavaScript',
+      'GET /desktop/metrics - Get page metrics',
+      'GET /desktop/stats - Get session statistics',
+      'GET /desktop/sessions - List all sessions',
+      'POST /desktop/close - Close session'
     ],
-    note: 'This feature requires Docker/Podman and noVNC/Guacamole setup'
+    futureFeatures: [
+      'VNC/RDP streaming via noVNC',
+      'Full GUI desktop environment',
+      'Per-session containerization',
+      'Download support'
+    ]
   });
 });
 
@@ -966,6 +1213,82 @@ app.get('/api/docs', (req, res) => {
           example: '/pdf/generate?url=https://example.com/article'
         }
       },
+      desktop: {
+        'POST /desktop/start': {
+          description: 'Start desktop mode session with enhanced capabilities',
+          parameters: {
+            url: { type: 'string', required: true, description: 'URL to load' },
+            sessionId: { type: 'string', required: true, description: 'Session ID' }
+          },
+          response: { success: true, desktopSessionId: 'string', viewport: 'object' },
+          example: 'POST /desktop/start with JSON body'
+        },
+        'GET /desktop/capture': {
+          description: 'Capture full page screenshot',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Desktop session ID' }
+          },
+          response: 'JPEG image',
+          example: '/desktop/capture?sid=desktop_xxx'
+        },
+        'GET /desktop/content': {
+          description: 'Get page HTML content',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Desktop session ID' }
+          },
+          response: { content: 'string', url: 'string' },
+          example: '/desktop/content?sid=desktop_xxx'
+        },
+        'POST /desktop/resize': {
+          description: 'Resize viewport',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Desktop session ID' },
+            width: { type: 'number', required: true, description: 'New width (320-3840)' },
+            height: { type: 'number', required: true, description: 'New height (240-2160)' }
+          },
+          response: { success: true, viewport: 'object' },
+          example: 'POST /desktop/resize with JSON body'
+        },
+        'POST /desktop/execute': {
+          description: 'Execute JavaScript in page context',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Desktop session ID' },
+            script: { type: 'string', required: true, description: 'JavaScript code to execute' },
+            args: { type: 'array', required: false, description: 'Arguments to pass to script' }
+          },
+          response: { success: true, result: 'any' },
+          example: 'POST /desktop/execute with JSON body'
+        },
+        'GET /desktop/metrics': {
+          description: 'Get page performance metrics',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Desktop session ID' }
+          },
+          response: { metrics: 'object', sessionMetrics: 'object' },
+          example: '/desktop/metrics?sid=desktop_xxx'
+        },
+        'GET /desktop/stats': {
+          description: 'Get session statistics and usage data',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Desktop session ID' }
+          },
+          response: { sessionId: 'string', metrics: 'object' },
+          example: '/desktop/stats?sid=desktop_xxx'
+        },
+        'GET /desktop/sessions': {
+          description: 'List all active desktop sessions',
+          response: { sessions: 'array', count: 'number' },
+          example: '/desktop/sessions'
+        },
+        'POST /desktop/close': {
+          description: 'Close desktop session',
+          parameters: {
+            sid: { type: 'string', required: true, description: 'Desktop session ID' }
+          },
+          response: { success: true, message: 'string' },
+          example: 'POST /desktop/close with JSON body'
+        }
+      },
       monitoring: {
         'GET /health': {
           description: 'Health check endpoint',
@@ -991,7 +1314,7 @@ app.get('/api/docs', (req, res) => {
       logging: 'Comprehensive logging of all requests'
     },
     features: [
-      'Multiple browsing modes (Fast, Reader, Text-only, Live, Snapshot)',
+      'Multiple browsing modes (Fast, Reader, Text-only, Live, Snapshot, Desktop)',
       'PDF generation from articles',
       'WebSocket support for real-time updates',
       'Cookie management',
@@ -1065,6 +1388,7 @@ if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     console.log('   📝 Text-only Mode - Minimal bandwidth');
     console.log('   🎮 Live Mode (Playwright) - Interactive browser sessions');
     console.log('   📸 Snapshot Mode - Capture and replay with HAR');
+    console.log('   �️  Desktop Mode - Enhanced browser with full page captures');
     console.log('   📄 PDF Generation - Convert reader mode to PDF');
     console.log('   🔌 WebSocket Support - Real-time updates (/ws/live)');
     console.log('   🍪 Cookie Management - Persistent cookie storage');
@@ -1074,7 +1398,12 @@ if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     console.log('   - Rate limiting active (60 req/min per IP)');
     console.log('   - Session validation active');
     console.log('   - Comprehensive logging enabled');
-    console.log('\n⚠️  Note: Desktop mode (noVNC/Guacamole) requires additional setup');
+    console.log('\n📊 Desktop Mode Features:');
+    console.log('   - Full page capture (JPEG, up to 1920x1080)');
+    console.log('   - Viewport resizing (320-3840 x 240-2160)');
+    console.log('   - JavaScript execution in page context');
+    console.log('   - Performance metrics and analytics');
+    console.log('   - Extended session timeouts (2 hours)');
     console.log('\n📚 Documentation: See README.md and docs/ folder');
     console.log(`${'='.repeat(60)}\n`);
   });
@@ -1092,6 +1421,7 @@ if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     await Promise.all([
       liveManager.shutdown(),
       snapshotManager.shutdown(),
+      desktopMode.shutdown(),
       pdfGenerator.shutdown(),
       wsManager.shutdown(),
       USE_REDIS ? redisManager.shutdown() : Promise.resolve()
@@ -1110,6 +1440,7 @@ if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     await Promise.all([
       liveManager.shutdown(),
       snapshotManager.shutdown(),
+      desktopMode.shutdown(),
       pdfGenerator.shutdown(),
       wsManager.shutdown(),
       USE_REDIS ? redisManager.shutdown() : Promise.resolve()
