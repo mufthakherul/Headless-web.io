@@ -879,7 +879,7 @@
 
         // Format duration (seconds to MM:SS)
         function formatDuration(seconds) {
-            if (!seconds || isNaN(seconds) || seconds < 0) return '';
+            if (seconds == null || isNaN(seconds) || seconds < 0) return '';
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
