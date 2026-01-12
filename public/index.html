@@ -954,11 +954,22 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ url })
                     });
+
+                    if (!snapshotResponse.ok) {
+                        const errorData = await snapshotResponse.json();
+                        throw new Error(errorData.message || 'Failed to create snapshot');
+                    }
+
                     const snapshotData = await snapshotResponse.json();
 
+                    if (!snapshotData.success || !snapshotData.snapshotId) {
+                        throw new Error(snapshotData.message || 'Snapshot creation failed');
+                    }
+
                     finalUrl = `/snapshot/view?sid=${snapshotData.snapshotId}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '📸 View Snapshot', url: finalUrl },
+                        { label: '📸 View Snapshot Again', url: finalUrl },
                         { label: '🖼️ View Screenshot', url: `/snapshot/screenshot?sid=${snapshotData.snapshotId}` }
                     ];
                 }
