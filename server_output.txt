@@ -1,0 +1,54 @@
+19:54:18 [[32minfo[39m]: WebSocket server initialized
+19:54:18 [[32minfo[39m]: WebSocket server initialized
+19:54:18 [[32minfo[39m]: Initializing database connection...
+19:54:18 [[32minfo[39m]: Snapshot storage initialized {"dir":"E:\\Miraz_Work\\Headless-web.io\\snapshots"}
+19:54:18 [[32minfo[39m]: Cookie storage initialized {"dir":"E:\\Miraz_Work\\Headless-web.io\\cookies"}
+19:54:18 [[32minfo[39m]: Download directory initialized {"path":"E:\\Miraz_Work\\Headless-web.io\\downloads"}
+19:54:18 [[33mwarn[39m]: Database connection failed - running in fallback mode {"error":""}
+19:54:18 [[32minfo[39m]: Initializing authentication system...
+19:54:18 [[33mwarn[39m]: Database not connected, admin user initialization skipped
+19:54:18 [[32minfo[39m]: Server initialization complete
+19:54:18 [[32minfo[39m]: Headless-web server started on port 3000
+
+============================================================
+🚀 Headless-web Gateway Server
+============================================================
+
+📡 Server: http://localhost:3000
+
+✅ Advanced Features Enabled:
+   ⚡ Fast Mode (Proxy) - Server-side fetch + rewrite
+   📖 Reader Mode - Article extraction
+   📝 Text-only Mode - Minimal bandwidth
+   🎮 Live Mode (Playwright) - Interactive browser sessions
+   📸 Snapshot Mode - Capture and replay with HAR
+   �️  Desktop Mode - Enhanced browser with full page captures
+   📄 PDF Generation - Convert reader mode to PDF
+   🔌 WebSocket Support - Real-time updates (/ws/live)
+   🍪 Cookie Management - Persistent cookie storage
+   ⚠️ Redis - Using in-memory storage
+   ⚠️ Database - Admin fallback mode
+
+🆕 New Features:
+   🔐 Authentication - Login with PostgreSQL or admin env fallback
+   🤖 AI Chat - Gemini, GPT, Grok, DeepSeek, Copilot
+   🕷️  Web Scraper - Extract content, images, links, metadata
+   ⬇️  Media Downloader - YouTube videos/audio, images, social media
+
+🔒 Security:
+   - SSRF protection active
+   - Rate limiting active (60 req/min per IP)
+   - Session validation active
+   - JWT token authentication
+   - Comprehensive logging enabled
+
+📊 Desktop Mode Features:
+   - Full page capture (JPEG, up to 1920x1080)
+   - Viewport resizing (320-3840 x 240-2160)
+   - JavaScript execution in page context
+   - Performance metrics and analytics
+   - Extended session timeouts (2 hours)
+
+📚 Documentation: See README.md and docs/ folder
+============================================================
+

@@ -34,6 +34,14 @@ const pdfGenerator = require('./pdfGenerator');
 const wsManager = require('./websocketManager');
 const redisManager = require('./redisManager');
 
+// New modules for authentication, AI, and scraper
+const database = require('./database');
+const authManager = require('./auth');
+const { authMiddleware, optionalAuthMiddleware, adminMiddleware, checkAuth } = require('./authMiddleware');
+const aiManager = require('./aiManager');
+const scraper = require('./scraper');
+const cookieParser = require('cookie-parser');
+
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
@@ -50,6 +58,9 @@ app.use(helmet({
 
 // Compression middleware for better performance
 app.use(compression());
+
+// Cookie parser for authentication
+app.use(cookieParser());
 
 // Body size limits to prevent abuse
 app.use(express.json({ limit: '1mb' }));
@@ -252,6 +263,343 @@ function setCachedResponse(key, data) {
 }
 
 // ===== ROUTE HANDLERS =====
+
+// ===== AUTHENTICATION ROUTES =====
+
+// Check authentication status
+app.get('/auth/check', checkAuth);
+
+// Login
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password required'
+      });
+    }
+
+    const result = await authManager.login(
+      email,
+      password,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    if (result.success) {
+      // Set cookies for session
+      res.cookie('token', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+      res.cookie('sessionId', result.sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      });
+
+      logger.info('User logged in', { email, userId: result.user.id });
+    }
+
+    res.json(result);
+  } catch (error) {
+    logger.error('Login error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Login failed'
+    });
+  }
+});
+
+// Register
+app.post('/auth/register', async (req, res) => {
+  try {
+    const { email, password, username } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password required'
+      });
+    }
+
+    const result = await authManager.register(email, password, username);
+    res.json(result);
+  } catch (error) {
+    logger.error('Registration error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Registration failed'
+    });
+  }
+});
+
+// Logout
+app.post('/auth/logout', authMiddleware, async (req, res) => {
+  try {
+    const sessionId = req.cookies.sessionId || req.headers['x-session-id'];
+    const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
+
+    await authManager.logout(sessionId, token);
+
+    // Clear cookies
+    res.clearCookie('token');
+    res.clearCookie('sessionId');
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Logout error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Logout failed'
+    });
+  }
+});
+
+// Get user stats (protected)
+app.get('/auth/stats', authMiddleware, async (req, res) => {
+  try {
+    const stats = await authManager.getUserStats(req.user.id);
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    logger.error('Stats retrieval error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get stats'
+    });
+  }
+});
+
+// ===== AI CHAT ROUTES =====
+
+// Get available AI providers
+app.get('/ai/providers', optionalAuthMiddleware, (req, res) => {
+  try {
+    const providers = aiManager.getAvailableProviders();
+    res.json({
+      success: true,
+      providers
+    });
+  } catch (error) {
+    logger.error('Failed to get providers', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get providers'
+    });
+  }
+});
+
+// Send message to AI
+app.post('/ai/chat', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const { provider, message, model, history, sessionId } = req.body;
+
+    if (!provider || !message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Provider and message required'
+      });
+    }
+
+    const userId = req.user?.id || null;
+    const result = await aiManager.sendMessage(
+      provider,
+      message,
+      model,
+      history || [],
+      userId,
+      sessionId
+    );
+
+    res.json(result);
+  } catch (error) {
+    logger.error('AI chat error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Chat failed'
+    });
+  }
+});
+
+// Get chat history (protected)
+app.get('/ai/history', authMiddleware, async (req, res) => {
+  try {
+    const { sessionId, limit } = req.query;
+    const history = await aiManager.getChatHistory(
+      req.user.id,
+      sessionId,
+      parseInt(limit) || 50
+    );
+
+    res.json({
+      success: true,
+      history
+    });
+  } catch (error) {
+    logger.error('Failed to get chat history', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get history'
+    });
+  }
+});
+
+// Clear chat history (protected)
+app.delete('/ai/history', authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    await aiManager.clearChatHistory(req.user.id, sessionId);
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Failed to clear chat history', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear history'
+    });
+  }
+});
+
+// ===== WEB SCRAPER & DOWNLOADER ROUTES =====
+
+// Scrape webpage
+app.post('/scrape', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const { url, options } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL required'
+      });
+    }
+
+    const result = await scraper.scrapeWebpage(url, options);
+    res.json(result);
+  } catch (error) {
+    logger.error('Scraping error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Scraping failed'
+    });
+  }
+});
+
+// Download YouTube video/audio
+app.post('/download/youtube', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const { url, format, quality } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL required'
+      });
+    }
+
+    const userId = req.user?.id || null;
+    const result = await scraper.downloadYouTube(url, format, quality, userId);
+    res.json(result);
+  } catch (error) {
+    logger.error('YouTube download error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Download failed'
+    });
+  }
+});
+
+// Download image
+app.post('/download/image', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL required'
+      });
+    }
+
+    const userId = req.user?.id || null;
+    const result = await scraper.downloadImage(url, userId);
+    res.json(result);
+  } catch (error) {
+    logger.error('Image download error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Download failed'
+    });
+  }
+});
+
+// Get download status
+app.get('/download/status/:downloadId', optionalAuthMiddleware, (req, res) => {
+  try {
+    const { downloadId } = req.params;
+    const status = scraper.getDownloadStatus(downloadId);
+    res.json(status);
+  } catch (error) {
+    logger.error('Status check error', { error: error.message });
+    res.status(500).json({
+      found: false,
+      error: 'Status check failed'
+    });
+  }
+});
+
+// Get download history (protected)
+app.get('/download/history', authMiddleware, async (req, res) => {
+  try {
+    const { limit } = req.query;
+    const history = await scraper.getDownloadHistory(
+      req.user.id,
+      parseInt(limit) || 50
+    );
+
+    res.json({
+      success: true,
+      history
+    });
+  } catch (error) {
+    logger.error('Failed to get download history', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get history'
+    });
+  }
+});
+
+// Extract social media info
+app.post('/scrape/social', optionalAuthMiddleware, async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL required'
+      });
+    }
+
+    const result = await scraper.extractSocialMediaInfo(url);
+    res.json(result);
+  } catch (error) {
+    logger.error('Social media extraction error', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Extraction failed'
+    });
+  }
+});
+
+// ===== EXISTING ROUTES =====
 
 // Main UI page
 app.get('/', (req, res) => {
@@ -1374,81 +1722,115 @@ app.use((err, req, res, next) => {
   }
 });
 
+// Initialize database and authentication
+async function initializeServer() {
+  try {
+    // Initialize database
+    logger.info('Initializing database connection...');
+    await database.initialize();
+
+    // Initialize authentication
+    logger.info('Initializing authentication system...');
+    await authManager.initializeAdminUser();
+
+    logger.info('Server initialization complete');
+    return true;
+  } catch (error) {
+    logger.error('Server initialization failed', { error: error.message });
+    // Continue running even if database fails (admin can still login via env)
+    return false;
+  }
+}
+
 // Start server (only if not in serverless environment)
 if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
-  server.listen(PORT, () => {
-    logger.info(`Headless-web server started on port ${PORT}`);
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`🚀 Headless-web Gateway Server`);
-    console.log(`${'='.repeat(60)}`);
-    console.log(`\n📡 Server: http://localhost:${PORT}`);
-    console.log(`\n✅ Advanced Features Enabled:`);
-    console.log('   ⚡ Fast Mode (Proxy) - Server-side fetch + rewrite');
-    console.log('   📖 Reader Mode - Article extraction');
-    console.log('   📝 Text-only Mode - Minimal bandwidth');
-    console.log('   🎮 Live Mode (Playwright) - Interactive browser sessions');
-    console.log('   📸 Snapshot Mode - Capture and replay with HAR');
-    console.log('   �️  Desktop Mode - Enhanced browser with full page captures');
-    console.log('   📄 PDF Generation - Convert reader mode to PDF');
-    console.log('   🔌 WebSocket Support - Real-time updates (/ws/live)');
-    console.log('   🍪 Cookie Management - Persistent cookie storage');
-    console.log(`   ${USE_REDIS ? '✅' : '⚠️'} Redis - ${USE_REDIS ? 'Distributed sessions enabled' : 'Using in-memory storage'}`);
-    console.log('\n🔒 Security:');
-    console.log('   - SSRF protection active');
-    console.log('   - Rate limiting active (60 req/min per IP)');
-    console.log('   - Session validation active');
-    console.log('   - Comprehensive logging enabled');
-    console.log('\n📊 Desktop Mode Features:');
-    console.log('   - Full page capture (JPEG, up to 1920x1080)');
-    console.log('   - Viewport resizing (320-3840 x 240-2160)');
-    console.log('   - JavaScript execution in page context');
-    console.log('   - Performance metrics and analytics');
-    console.log('   - Extended session timeouts (2 hours)');
-    console.log('\n📚 Documentation: See README.md and docs/ folder');
-    console.log(`${'='.repeat(60)}\n`);
-  });
-
-  // Graceful shutdown
-  process.on('SIGTERM', async () => {
-    logger.info('SIGTERM received, shutting down gracefully');
-
-    // Close server
-    server.close(() => {
-      logger.info('HTTP server closed');
+  // Initialize before starting
+  initializeServer().then(() => {
+    server.listen(PORT, () => {
+      logger.info(`Headless-web server started on port ${PORT}`);
+      console.log(`\n${'='.repeat(60)}`);
+      console.log(`🚀 Headless-web Gateway Server`);
+      console.log(`${'='.repeat(60)}`);
+      console.log(`\n📡 Server: http://localhost:${PORT}`);
+      console.log(`\n✅ Advanced Features Enabled:`);
+      console.log('   ⚡ Fast Mode (Proxy) - Server-side fetch + rewrite');
+      console.log('   📖 Reader Mode - Article extraction');
+      console.log('   📝 Text-only Mode - Minimal bandwidth');
+      console.log('   🎮 Live Mode (Playwright) - Interactive browser sessions');
+      console.log('   📸 Snapshot Mode - Capture and replay with HAR');
+      console.log('   �️  Desktop Mode - Enhanced browser with full page captures');
+      console.log('   📄 PDF Generation - Convert reader mode to PDF');
+      console.log('   🔌 WebSocket Support - Real-time updates (/ws/live)');
+      console.log('   🍪 Cookie Management - Persistent cookie storage');
+      console.log(`   ${USE_REDIS ? '✅' : '⚠️'} Redis - ${USE_REDIS ? 'Distributed sessions enabled' : 'Using in-memory storage'}`);
+      console.log(`   ${database.isConnected() ? '✅' : '⚠️'} Database - ${database.isConnected() ? 'PostgreSQL connected' : 'Admin fallback mode'}`);
+      console.log('\n🆕 New Features:');
+      console.log('   🔐 Authentication - Login with PostgreSQL or admin env fallback');
+      console.log('   🤖 AI Chat - Gemini, GPT, Grok, DeepSeek, Copilot');
+      console.log('   🕷️  Web Scraper - Extract content, images, links, metadata');
+      console.log('   ⬇️  Media Downloader - YouTube videos/audio, images, social media');
+      console.log('\n🔒 Security:');
+      console.log('   - SSRF protection active');
+      console.log('   - Rate limiting active (60 req/min per IP)');
+      console.log('   - Session validation active');
+      console.log('   - JWT token authentication');
+      console.log('   - Comprehensive logging enabled');
+      console.log('\n📊 Desktop Mode Features:');
+      console.log('   - Full page capture (JPEG, up to 1920x1080)');
+      console.log('   - Viewport resizing (320-3840 x 240-2160)');
+      console.log('   - JavaScript execution in page context');
+      console.log('   - Performance metrics and analytics');
+      console.log('   - Extended session timeouts (2 hours)');
+      console.log('\n📚 Documentation: See README.md and docs/ folder');
+      console.log(`${'='.repeat(60)}\n`);
     });
-
-    // Cleanup managers
-    await Promise.all([
-      liveManager.shutdown(),
-      snapshotManager.shutdown(),
-      desktopMode.shutdown(),
-      pdfGenerator.shutdown(),
-      wsManager.shutdown(),
-      USE_REDIS ? redisManager.shutdown() : Promise.resolve()
-    ]);
-
-    process.exit(0);
   });
-
-  process.on('SIGINT', async () => {
-    logger.info('SIGINT received, shutting down gracefully');
-
-    server.close(() => {
-      logger.info('HTTP server closed');
-    });
-
-    await Promise.all([
-      liveManager.shutdown(),
-      snapshotManager.shutdown(),
-      desktopMode.shutdown(),
-      pdfGenerator.shutdown(),
-      wsManager.shutdown(),
-      USE_REDIS ? redisManager.shutdown() : Promise.resolve()
-    ]);
-
-    process.exit(0);
-  });
+} else {
+  logger.info('Serverless environment detected - skipping server.listen()');
 }
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+
+  // Close server
+  server.close(() => {
+    logger.info('HTTP server closed');
+  });
+
+  // Cleanup managers
+  await Promise.all([
+    liveManager.shutdown(),
+    snapshotManager.shutdown(),
+    desktopMode.shutdown(),
+    pdfGenerator.shutdown(),
+    wsManager.shutdown(),
+    database.shutdown(),
+    USE_REDIS ? redisManager.shutdown() : Promise.resolve()
+  ]);
+
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, shutting down gracefully');
+
+  server.close(() => {
+    logger.info('HTTP server closed');
+  });
+
+  await Promise.all([
+    liveManager.shutdown(),
+    snapshotManager.shutdown(),
+    desktopMode.shutdown(),
+    pdfGenerator.shutdown(),
+    wsManager.shutdown(),
+    database.shutdown(),
+    USE_REDIS ? redisManager.shutdown() : Promise.resolve()
+  ]);
+
+  process.exit(0);
+});
 
 // Export app for serverless environments (Vercel, AWS Lambda, etc.)
 module.exports = app;
