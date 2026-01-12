@@ -60,7 +60,7 @@
     "eslint": "^8.54.0",
     "prettier": "^3.1.0",
     "axe-core": "^4.7.2",
-    "lighthouse": "^11.1.0",
+    "lighthouse": "^13.0.1",
     "jest-axe": "^8.0.0",
     "codecov": "^3.8.3"
   },
