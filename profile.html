@@ -815,6 +815,9 @@
     </div>
 
     <script>
+        // Constants
+        const AVATAR_EMOJIS = ['👤', '😊', '🚀', '⭐', '🎯', '💡', '🌟', '🔥', '🎨', '🎭', '🎪', '🎬', '🎮', '🎲', '🎼', '🎵', '🎸', '🎹', '🎺', '🎻', '🎤', '🎧', '📱', '💻', '⌨️', '🖥️', '🖱️', '🖨️', '📷', '📸', '📹', '🎥', '📽️', '🔬', '🔭', '📡', '🛸', '🚁', '🛰️', '💫', '✨', '⚡', '💧', '🌊', '🌈', '☀️', '🌙', '🦄', '🐉', '🦋', '🐝'];
+
         // Theme toggle
         function toggleTheme() {
             const html = document.documentElement;
@@ -878,8 +881,7 @@
                 if (savedAvatar) {
                     document.getElementById('avatar-emoji').textContent = savedAvatar;
                 } else {
-                    const emojis = ['👤', '😊', '🚀', '⭐', '🎯', '💡', '🌟', '🔥'];
-                    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+                    const randomEmoji = AVATAR_EMOJIS[Math.floor(Math.random() * AVATAR_EMOJIS.length)];
                     document.getElementById('avatar-emoji').textContent = randomEmoji;
                     localStorage.setItem('userAvatar', randomEmoji);
                 }
@@ -1067,15 +1069,13 @@
 
         // Upload avatar - Show emoji picker
         function uploadAvatar() {
-            const emojis = ['👤', '😊', '🚀', '⭐', '🎯', '💡', '🌟', '🔥', '🎨', '🎭', '🎪', '🎬', '🎮', '🎲', '🎼', '🎵', '🎸', '🎹', '🎺', '🎻', '🎤', '🎧', '📱', '💻', '⌨️', '🖥️', '🖱️', '🖨️', '📷', '📸', '📹', '🎥', '📽️', '🔬', '🔭', '📡', '🛸', '🚁', '🛰️', '💫', '✨', '⚡', '💧', '🌊', '🌈', '☀️', '🌙', '🦄', '🐉', '🦋', '🐝'];
-            
             const picker = document.createElement('div');
             picker.className = 'emoji-picker';
             
             picker.innerHTML = `
                 <h3 class="emoji-picker-title">Choose Your Avatar</h3>
                 <div class="emoji-grid" id="emoji-grid">
-                    ${emojis.map(emoji => `
+                    ${AVATAR_EMOJIS.map(emoji => `
                         <button class="emoji-btn" data-emoji="${emoji}">${emoji}</button>
                     `).join('')}
                 </div>

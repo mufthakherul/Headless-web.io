@@ -105,6 +105,7 @@ async function syncData() {
 self.addEventListener('push', event => {
   const options = {
     body: event.data?.text() || 'New notification',
+    // Note: Ensure favicon.ico exists at root, or replace with actual icon path
     icon: '/favicon.ico',
     badge: '/favicon.ico',
     vibrate: [200, 100, 200]
