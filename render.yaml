@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: headless-web
+    env: docker
+    autoDeploy: true
+    plan: free
+    healthCheckPath: /health
+    runtime: docker
+    buildCommand: ''
+    startCommand: ''
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: USE_REDIS
+        value: false
+      - key: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD
+        value: "1"
+      - key: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+        value: /usr/bin/chromium-browser
+      - key: CORS_ORIGIN
+        value: "*"

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -113,13 +114,18 @@
             right: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
             animation: rotate 20s linear infinite;
         }
 
         @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .header-content {
@@ -130,7 +136,7 @@
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .header p {
@@ -175,6 +181,7 @@
                 opacity: 0;
                 transform: translateY(-20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -387,8 +394,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .result {
@@ -509,6 +521,7 @@
         }
     </style>
 </head>
+
 <body>
     <nav class="nav">
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
@@ -565,14 +578,16 @@
                             <span class="mode-badge badge-new">READY</span>
                             <div class="mode-icon">⚡</div>
                             <div class="mode-title">Fast (Proxy)</div>
-                            <div class="mode-description">Server-side fetch with HTML/CSS rewriting. Best for static sites.</div>
+                            <div class="mode-description">Server-side fetch with HTML/CSS rewriting. Best for static
+                                sites.</div>
                         </div>
 
                         <div class="mode-card" data-mode="reader" onclick="selectMode('reader')">
                             <span class="mode-badge badge-new">READY</span>
                             <div class="mode-icon">📖</div>
                             <div class="mode-title">Reader Mode</div>
-                            <div class="mode-description">Extract main article content with clean formatting. Includes PDF export.</div>
+                            <div class="mode-description">Extract main article content with clean formatting. Includes
+                                PDF export.</div>
                         </div>
 
                         <div class="mode-card" data-mode="text" onclick="selectMode('text')">
@@ -586,14 +601,16 @@
                             <span class="mode-badge badge-new">NEW</span>
                             <div class="mode-icon">🎮</div>
                             <div class="mode-title">Live Mode</div>
-                            <div class="mode-description">Interactive browser session with real-time streaming via WebSocket.</div>
+                            <div class="mode-description">Interactive browser session with real-time streaming via
+                                WebSocket.</div>
                         </div>
 
                         <div class="mode-card" data-mode="snapshot" onclick="selectMode('snapshot')">
                             <span class="mode-badge badge-new">NEW</span>
                             <div class="mode-icon">📸</div>
                             <div class="mode-title">Snapshot</div>
-                            <div class="mode-description">Capture and save pages for offline viewing with full resources.</div>
+                            <div class="mode-description">Capture and save pages for offline viewing with full
+                                resources.</div>
                         </div>
 
                         <div class="mode-card" data-mode="desktop" onclick="selectMode('desktop')">
@@ -646,7 +663,8 @@
         </div>
 
         <div class="footer">
-            <p>Headless-web Gateway v2.0 | <a href="https://github.com/mufthakherul/Headless-web.io" target="_blank">View on GitHub</a></p>
+            <p>Headless-web Gateway v2.0 | <a href="https://github.com/mufthakherul/Headless-web.io"
+                    target="_blank">View on GitHub</a></p>
             <p>Features: Playwright, WebSocket, Redis, Cookie Management, PDF Generation</p>
         </div>
     </div>
@@ -694,27 +712,45 @@
 
         async function showStats() {
             document.getElementById('statsModal').style.display = 'flex';
-            
+
             try {
                 const response = await fetch('/stats');
+
+                // Check if response is ok and JSON
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Backend API not available. This app requires a Node.js server. Deploy to Vercel for full functionality.');
+                }
+
                 const stats = await response.json();
-                
+
                 document.getElementById('stats-content').innerHTML = `
                     <div style="font-family: monospace; font-size: 0.9em;">
                         <h3>Server</h3>
+                        <p>Environment: ${stats.server.environment || 'Unknown'}</p>
                         <p>Uptime: ${Math.floor(stats.server.uptime / 60)} minutes</p>
                         <p>Active Sessions: ${stats.server.activeSessions}</p>
                         <p>Memory: ${Math.round(stats.server.memory.heapUsed / 1024 / 1024)} MB</p>
                         
                         <h3 style="margin-top: 20px;">Live Mode</h3>
-                        <p>Active Sessions: ${stats.liveMode.activeSessions}</p>
-                        <p>Browser Active: ${stats.liveMode.browserActive ? 'Yes' : 'No'}</p>
+                        ${stats.liveMode.enabled !== false ? `
+                            <p>Active Sessions: ${stats.liveMode.activeSessions}</p>
+                            <p>Browser Active: ${stats.liveMode.browserActive ? 'Yes' : 'No'}</p>
+                        ` : '<p style="color: #f59e0b;">⚠️ Disabled in serverless mode</p>'}
                         
                         <h3 style="margin-top: 20px;">Snapshots</h3>
-                        <p>Total Snapshots: ${stats.snapshot.totalSnapshots}</p>
+                        ${stats.snapshot.enabled !== false ? `
+                            <p>Total Snapshots: ${stats.snapshot.totalSnapshots}</p>
+                        ` : '<p style="color: #f59e0b;">⚠️ Disabled in serverless mode</p>'}
                         
                         <h3 style="margin-top: 20px;">WebSocket</h3>
-                        <p>Connected Clients: ${stats.websocket.connectedClients}</p>
+                        ${stats.websocket.enabled !== false ? `
+                            <p>Connected Clients: ${stats.websocket.connectedClients}</p>
+                        ` : '<p style="color: #f59e0b;">⚠️ Disabled in serverless mode</p>'}
                         
                         ${stats.redis ? `
                             <h3 style="margin-top: 20px;">Redis</h3>
@@ -725,7 +761,13 @@
                 `;
             } catch (error) {
                 document.getElementById('stats-content').innerHTML = `
-                    <div class="alert-error">Failed to load stats: ${error.message}</div>
+                    <div class="alert-error">
+                        <strong>Failed to load stats</strong><br><br>
+                        ${error.message}<br><br>
+                        ${error.message.includes('Backend API') ?
+                        '<strong>Deploy to Vercel:</strong><br>• Connect your GitHub repo to Vercel<br>• Deploy from main branch<br>• Full backend API will be available' :
+                        ''}
+                    </div>
                 `;
             }
         }
@@ -736,11 +778,11 @@
 
         document.getElementById('browseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const url = document.getElementById('url').value;
             const loading = document.getElementById('loading');
             const result = document.getElementById('result');
-            
+
             loading.style.display = 'block';
             result.style.display = 'none';
 
@@ -783,7 +825,7 @@
                         body: JSON.stringify({ sessionId: sid, url })
                     });
                     const liveData = await liveResponse.json();
-                    
+
                     finalUrl = `/live?sid=${sid}`;
                     actions = [
                         { label: '🎮 Open Live Mode', url: finalUrl }
@@ -796,7 +838,7 @@
                         body: JSON.stringify({ url })
                     });
                     const snapshotData = await snapshotResponse.json();
-                    
+
                     finalUrl = `/snapshot/view?sid=${snapshotData.snapshotId}`;
                     actions = [
                         { label: '📸 View Snapshot', url: finalUrl },
@@ -815,7 +857,7 @@
 
                 const actionButtons = document.getElementById('action-buttons');
                 actionButtons.innerHTML = '';
-                
+
                 actions.forEach(action => {
                     const btn = document.createElement('button');
                     btn.className = 'btn-secondary';
@@ -839,4 +881,5 @@
         };
     </script>
 </body>
+
 </html>

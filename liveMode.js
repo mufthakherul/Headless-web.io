@@ -18,18 +18,22 @@ class LiveModeManager {
   async initialize() {
     if (!this.browser) {
       try {
+        const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
         this.browser = await chromium.launch({
           headless: true,
+          ...(executablePath ? { executablePath } : {}),
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--single-process',
+            '--no-zygote'
           ]
         });
         logger.info('Playwright browser launched successfully');
-        
+
         // Start cleanup timer
         this.startCleanupTimer();
       } catch (error) {
@@ -59,11 +63,11 @@ class LiveModeManager {
       });
 
       const page = await context.newPage();
-      
+
       // Navigate to URL
-      await page.goto(url, { 
+      await page.goto(url, {
         waitUntil: 'networkidle',
-        timeout: config.REQUEST_TIMEOUT 
+        timeout: config.REQUEST_TIMEOUT
       });
 
       const session = {
@@ -189,9 +193,9 @@ class LiveModeManager {
 
     try {
       session.lastAccessed = Date.now();
-      await session.page.goto(url, { 
+      await session.page.goto(url, {
         waitUntil: 'networkidle',
-        timeout: config.REQUEST_TIMEOUT 
+        timeout: config.REQUEST_TIMEOUT
       });
       session.url = url;
 
@@ -257,7 +261,7 @@ class LiveModeManager {
 
   async shutdown() {
     logger.info('Shutting down live mode manager');
-    
+
     // Close all sessions
     for (const sessionId of this.sessions.keys()) {
       await this.closeSession(sessionId);

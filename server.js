@@ -1,3 +1,17 @@
+// Polyfill File for environments where global File is missing (e.g., some Node builds)
+if (typeof File === 'undefined') {
+  global.File = class File extends Blob {
+    constructor(chunks, name, options = {}) {
+      super(chunks, options);
+      this.name = name;
+      this.lastModified = options.lastModified || Date.now();
+    }
+    get [Symbol.toStringTag]() {
+      return 'File';
+    }
+  };
+}
+
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -22,6 +36,9 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const USE_REDIS = process.env.USE_REDIS === 'true';
+const IS_SERVERLESS = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const DISABLE_PLAYWRIGHT = process.env.DISABLE_PLAYWRIGHT === 'true' || IS_SERVERLESS;
+const DISABLE_WEBSOCKET = process.env.DISABLE_WEBSOCKET === 'true' || IS_SERVERLESS;
 
 // Security middleware - Helmet.js for secure headers
 app.use(helmet({
@@ -66,48 +83,55 @@ const metrics = {
 // Logging and metrics middleware
 app.use((req, res, next) => {
   const startTime = Date.now();
-  
+
   // Log request
   logger.request(req);
-  
+
   // Track metrics
   metrics.requests.total++;
   metrics.requests.byMethod[req.method] = (metrics.requests.byMethod[req.method] || 0) + 1;
-  
+
   // Capture response to track status codes
   const originalSend = res.send;
-  res.send = function(data) {
+  res.send = function (data) {
     const statusCode = res.statusCode;
     metrics.requests.byStatus[statusCode] = (metrics.requests.byStatus[statusCode] || 0) + 1;
-    
+
     if (statusCode >= 400) {
       metrics.requests.errors++;
     }
-    
+
     // Track path metrics
     const pathKey = req.path || 'unknown';
     if (!metrics.requests.byPath[pathKey]) {
       metrics.requests.byPath[pathKey] = { count: 0, totalTime: 0, avgTime: 0 };
     }
     metrics.requests.byPath[pathKey].count++;
-    
+
     const responseTime = Date.now() - startTime;
     metrics.requests.byPath[pathKey].totalTime += responseTime;
     metrics.requests.byPath[pathKey].avgTime = Math.round(
       metrics.requests.byPath[pathKey].totalTime / metrics.requests.byPath[pathKey].count
     );
-    
+
     // Add response time header
     res.setHeader('X-Response-Time', `${responseTime}ms`);
-    
+
     return originalSend.call(this, data);
   };
-  
+
   next();
 });
 
-// Initialize WebSocket server
-wsManager.initialize(server);
+// Initialize WebSocket server (skip in serverless)
+if (!DISABLE_WEBSOCKET) {
+  try {
+    wsManager.initialize(server);
+    logger.info('WebSocket server initialized');
+  } catch (error) {
+    logger.warn('WebSocket initialization failed', { error: error.message });
+  }
+}
 
 // Initialize Redis if enabled
 if (USE_REDIS) {
@@ -116,8 +140,8 @@ if (USE_REDIS) {
       logger.info('Redis initialized successfully');
     })
     .catch((error) => {
-      logger.warn('Redis initialization failed, using in-memory storage', { 
-        error: error.message 
+      logger.warn('Redis initialization failed, using in-memory storage', {
+        error: error.message
       });
     });
 }
@@ -138,22 +162,22 @@ function generateSessionId() {
 function cleanupStaleSessions() {
   const now = Date.now();
   let cleanedCount = 0;
-  
+
   for (const [sessionId, session] of sessions.entries()) {
     const timeSinceLastAccess = now - session.lastAccessed;
     const timeSinceCreation = now - session.createdAt;
-    
+
     // Remove session if inactive for 30 minutes or older than 24 hours
     if (timeSinceLastAccess > SESSION_TIMEOUT || timeSinceCreation > SESSION_MAX_AGE) {
       sessions.delete(sessionId);
       cleanedCount++;
-      logger.session('expired', sessionId, { 
+      logger.session('expired', sessionId, {
         reason: timeSinceLastAccess > SESSION_TIMEOUT ? 'timeout' : 'max_age',
         age: Math.floor(timeSinceCreation / 1000) + 's'
       });
     }
   }
-  
+
   if (cleanedCount > 0) {
     logger.info(`Cleaned up ${cleanedCount} stale sessions`);
   }
@@ -170,12 +194,12 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 function getCachedResponse(key) {
   const cached = responseCache.get(key);
   if (!cached) return null;
-  
+
   if (Date.now() - cached.timestamp > CACHE_TTL) {
     responseCache.delete(key);
     return null;
   }
-  
+
   return cached.data;
 }
 
@@ -185,7 +209,7 @@ function setCachedResponse(key, data) {
     const firstKey = responseCache.keys().next().value;
     responseCache.delete(firstKey);
   }
-  
+
   responseCache.set(key, {
     data,
     timestamp: Date.now()
@@ -207,14 +231,14 @@ app.get('/live', (req, res) => {
 // Start a new session/tab (with SSRF protection and session rate limiting)
 app.get('/go', sessionRateLimitMiddleware, ssrfProtectionMiddleware, (req, res) => {
   const { url, mode = 'fast' } = req.query;
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL parameter is required' });
   }
-  
+
   // URL has been validated by ssrfProtectionMiddleware
   // req.validatedURL contains the parsed and validated URL
-  
+
   const sessionId = generateSessionId();
   sessions.set(sessionId, {
     url,
@@ -222,9 +246,9 @@ app.get('/go', sessionRateLimitMiddleware, ssrfProtectionMiddleware, (req, res) 
     createdAt: Date.now(),
     lastAccessed: Date.now()
   });
-  
+
   logger.session('created', sessionId, { url, mode });
-  
+
   res.json({
     success: true,
     sessionId,
@@ -237,30 +261,30 @@ app.get('/go', sessionRateLimitMiddleware, ssrfProtectionMiddleware, (req, res) 
 // Proxy mode: Server-side fetch + rewrite (with SSRF protection)
 app.get('/proxy', ssrfProtectionMiddleware, async (req, res) => {
   const { sid, url } = req.query;
-  
+
   // Validate session ID
   if (!sid || !sessions.has(sid)) {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL parameter is required' });
   }
 
   try {
     const result = await fetchAndRewrite(url, sid, '/proxy');
-    
+
     // Update session last accessed time
     const session = sessions.get(sid);
     session.lastAccessed = Date.now();
-    
+
     res.setHeader('Content-Type', result.contentType);
     res.status(result.statusCode).send(result.content);
   } catch (error) {
     logger.error('Proxy request failed', { sid, url, error: error.message });
-    res.status(500).json({ 
-      error: 'Proxy failed', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Proxy failed',
+      message: error.message
     });
   }
 });
@@ -268,12 +292,12 @@ app.get('/proxy', ssrfProtectionMiddleware, async (req, res) => {
 // Reader mode: Content extraction (with SSRF protection)
 app.get('/reader', ssrfProtectionMiddleware, async (req, res) => {
   const { sid, url } = req.query;
-  
+
   // Validate session ID
   if (!sid || !sessions.has(sid)) {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL parameter is required' });
   }
@@ -281,18 +305,18 @@ app.get('/reader', ssrfProtectionMiddleware, async (req, res) => {
   try {
     const article = await extractContent(url);
     const html = generateReaderHTML(article, url);
-    
+
     // Update session last accessed time
     const session = sessions.get(sid);
     session.lastAccessed = Date.now();
-    
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (error) {
     logger.error('Reader mode failed', { sid, url, error: error.message });
-    res.status(500).json({ 
-      error: 'Reader mode failed', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Reader mode failed',
+      message: error.message
     });
   }
 });
@@ -300,12 +324,12 @@ app.get('/reader', ssrfProtectionMiddleware, async (req, res) => {
 // Text-only mode: Minimal representation (with SSRF protection)
 app.get('/text', ssrfProtectionMiddleware, async (req, res) => {
   const { sid, url } = req.query;
-  
+
   // Validate session ID
   if (!sid || !sessions.has(sid)) {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL parameter is required' });
   }
@@ -313,36 +337,45 @@ app.get('/text', ssrfProtectionMiddleware, async (req, res) => {
   try {
     const data = await convertToTextOnly(url);
     const html = generateTextOnlyHTML(data);
-    
+
     // Update session last accessed time
     const session = sessions.get(sid);
     session.lastAccessed = Date.now();
-    
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (error) {
     logger.error('Text-only mode failed', { sid, url, error: error.message });
-    res.status(500).json({ 
-      error: 'Text-only mode failed', 
-      message: error.message 
+    res.status(500).json({
+      error: 'Text-only mode failed',
+      message: error.message
     });
   }
 });
 
 // Live mode: Start Playwright session (with SSRF protection)
 app.post('/live/start', ssrfProtectionMiddleware, async (req, res) => {
+  // Check if Playwright is disabled
+  if (DISABLE_PLAYWRIGHT) {
+    return res.status(503).json({
+      error: 'Live mode not available',
+      message: 'Live mode is disabled in serverless environments. Please use other modes like Fast, Reader, or Text-only.',
+      availableModes: ['fast', 'reader', 'text', 'snapshot', 'pdf']
+    });
+  }
+
   const { url, sessionId } = req.body;
-  
+
   // Validate session ID
   if (!sessionId || !sessions.has(sessionId)) {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
-  
+
   try {
     const result = await liveManager.createSession(sessionId, url);
-    
+
     logger.info('Live session started', { sessionId, url });
-    
+
     res.json({
       success: true,
       mode: 'live',
@@ -362,15 +395,15 @@ app.post('/live/start', ssrfProtectionMiddleware, async (req, res) => {
 // Live mode: Get frame/screenshot
 app.get('/live/frame', async (req, res) => {
   const { sid } = req.query;
-  
+
   // Validate session ID
   if (!sid || !sessions.has(sid)) {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
-  
+
   try {
     const frameData = await liveManager.captureFrame(sid, 'png');
-    
+
     res.setHeader('Content-Type', 'image/png');
     res.send(frameData.image);
   } catch (error) {
@@ -385,15 +418,15 @@ app.get('/live/frame', async (req, res) => {
 // Live mode: Send input events
 app.post('/live/input', async (req, res) => {
   const { sid, event } = req.body;
-  
+
   // Validate session ID
   if (!sid || !sessions.has(sid)) {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
-  
+
   try {
     await liveManager.sendInput(sid, event);
-    
+
     res.json({
       success: true,
       message: 'Input event processed'
@@ -409,11 +442,20 @@ app.post('/live/input', async (req, res) => {
 
 // Snapshot mode: Create snapshot (with SSRF protection)
 app.post('/snapshot/create', ssrfProtectionMiddleware, async (req, res) => {
+  // Check if Playwright is disabled
+  if (DISABLE_PLAYWRIGHT) {
+    return res.status(503).json({
+      error: 'Snapshot mode not available',
+      message: 'Snapshot mode requires Playwright which is disabled in serverless environments.',
+      availableModes: ['fast', 'reader', 'text', 'pdf']
+    });
+  }
+
   const { url, fullPage = false } = req.body;
-  
+
   try {
     const result = await snapshotManager.createSnapshot(url, { fullPage });
-    
+
     res.json({
       success: true,
       mode: 'snapshot',
@@ -433,14 +475,14 @@ app.post('/snapshot/create', ssrfProtectionMiddleware, async (req, res) => {
 // Snapshot mode: View snapshot
 app.get('/snapshot/view', async (req, res) => {
   const { sid } = req.query;
-  
+
   if (!sid) {
     return res.status(400).json({ error: 'Snapshot ID is required' });
   }
-  
+
   try {
     const snapshot = await snapshotManager.getSnapshot(sid);
-    
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(snapshot.content);
   } catch (error) {
@@ -456,7 +498,7 @@ app.get('/snapshot/view', async (req, res) => {
 app.get('/snapshot/list', async (req, res) => {
   try {
     const snapshots = await snapshotManager.listSnapshots();
-    
+
     res.json({
       success: true,
       snapshots,
@@ -474,14 +516,14 @@ app.get('/snapshot/list', async (req, res) => {
 // Snapshot mode: Get screenshot
 app.get('/snapshot/screenshot', async (req, res) => {
   const { sid } = req.query;
-  
+
   if (!sid) {
     return res.status(400).json({ error: 'Snapshot ID is required' });
   }
-  
+
   try {
     const screenshot = await snapshotManager.getSnapshotScreenshot(sid);
-    
+
     res.setHeader('Content-Type', 'image/png');
     res.send(screenshot);
   } catch (error) {
@@ -496,17 +538,17 @@ app.get('/snapshot/screenshot', async (req, res) => {
 // Remote Desktop mode: Full GUI browser
 app.get('/desktop', (req, res) => {
   const { sid } = req.query;
-  
+
   // Validate session ID
   if (!sid || !sessions.has(sid)) {
     return res.status(401).json({ error: 'Invalid or missing session ID' });
   }
-  
+
   // TODO: Start containerized desktop environment
   // TODO: Launch Chromium in container
   // TODO: Set up Guacamole/noVNC streaming
   // TODO: Implement strong isolation
-  
+
   res.json({
     mode: 'desktop',
     message: 'Remote desktop mode not yet implemented',
@@ -523,19 +565,28 @@ app.get('/desktop', (req, res) => {
 
 // PDF Generation: Generate PDF from reader mode
 app.get('/pdf/generate', ssrfProtectionMiddleware, async (req, res) => {
+  // Check if Playwright is disabled
+  if (DISABLE_PLAYWRIGHT) {
+    return res.status(503).json({
+      error: 'PDF generation not available',
+      message: 'PDF generation requires Playwright which is disabled in serverless environments. Try Reader mode instead.',
+      suggestion: 'Use /reader endpoint to view the article in a clean format'
+    });
+  }
+
   const { url } = req.query;
-  
+
   if (!url) {
     return res.status(400).json({ error: 'URL parameter is required' });
   }
-  
+
   try {
     const pdf = await pdfGenerator.generatePDFFromURL(url);
-    
+
     // Generate filename from URL
     const urlObj = new URL(url);
     const filename = `reader-${urlObj.hostname}-${Date.now()}.pdf`;
-    
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(pdf);
@@ -557,20 +608,21 @@ app.get('/stats', async (req, res) => {
         uptimeFormatted: formatUptime(process.uptime()),
         memory: process.memoryUsage(),
         activeSessions: sessions.size,
-        startTime: new Date(metrics.startTime).toISOString()
+        startTime: new Date(metrics.startTime).toISOString(),
+        environment: IS_SERVERLESS ? 'serverless' : 'standalone'
       },
       requests: {
         total: metrics.requests.total,
         byMethod: metrics.requests.byMethod,
         byStatus: metrics.requests.byStatus,
         errors: metrics.requests.errors,
-        errorRate: metrics.requests.total > 0 
+        errorRate: metrics.requests.total > 0
           ? ((metrics.requests.errors / metrics.requests.total) * 100).toFixed(2) + '%'
           : '0%'
       },
-      liveMode: liveManager.getStats(),
-      snapshot: snapshotManager.getStats(),
-      websocket: wsManager.getStats()
+      liveMode: !DISABLE_PLAYWRIGHT ? liveManager.getStats() : { enabled: false, message: 'Disabled in serverless' },
+      snapshot: !DISABLE_PLAYWRIGHT ? snapshotManager.getStats() : { enabled: false, message: 'Disabled in serverless' },
+      websocket: !DISABLE_WEBSOCKET ? wsManager.getStats() : { enabled: false, message: 'Disabled in serverless' }
     };
 
     // Add Redis stats if available
@@ -606,7 +658,7 @@ app.get('/metrics', (req, res) => {
     requestsByMethod: metrics.requests.byMethod,
     requestsByStatus: metrics.requests.byStatus,
     errorCount: metrics.requests.errors,
-    errorRate: metrics.requests.total > 0 
+    errorRate: metrics.requests.total > 0
       ? ((metrics.requests.errors / metrics.requests.total) * 100).toFixed(2) + '%'
       : '0%',
     topEndpoints: topPaths,
@@ -624,13 +676,13 @@ function formatUptime(seconds) {
   const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  
+
   const parts = [];
   if (days > 0) parts.push(`${days}d`);
   if (hours > 0) parts.push(`${hours}h`);
   if (minutes > 0) parts.push(`${minutes}m`);
   if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
-  
+
   return parts.join(' ');
 }
 
@@ -641,14 +693,15 @@ app.get('/health', async (req, res) => {
     timestamp: new Date().toISOString(),
     activeSessions: sessions.size,
     cacheSize: responseCache.size,
+    environment: IS_SERVERLESS ? 'serverless' : 'standalone',
     features: {
       proxy: true,
       reader: true,
       textOnly: true,
-      live: true,
-      snapshot: true,
-      pdf: true,
-      websocket: wsManager.getStats().wsServerActive,
+      live: !DISABLE_PLAYWRIGHT,
+      snapshot: !DISABLE_PLAYWRIGHT,
+      pdf: !DISABLE_PLAYWRIGHT,
+      websocket: !DISABLE_WEBSOCKET && (wsManager.getStats ? wsManager.getStats().wsServerActive : false),
       redis: USE_REDIS && redisManager.isConnected
     }
   };
@@ -682,14 +735,14 @@ app.get('/sessions/list', (req, res) => {
 
 app.delete('/sessions/:sessionId', (req, res) => {
   const { sessionId } = req.params;
-  
+
   if (!sessions.has(sessionId)) {
     return res.status(404).json({ error: 'Session not found' });
   }
-  
+
   sessions.delete(sessionId);
   logger.session('deleted', sessionId);
-  
+
   res.json({
     success: true,
     message: 'Session deleted'
@@ -700,7 +753,7 @@ app.post('/sessions/cleanup', (req, res) => {
   const beforeCount = sessions.size;
   cleanupStaleSessions();
   const afterCount = sessions.size;
-  
+
   res.json({
     success: true,
     removed: beforeCount - afterCount,
@@ -721,9 +774,9 @@ app.get('/cache/stats', (req, res) => {
 app.post('/cache/clear', (req, res) => {
   const beforeSize = responseCache.size;
   responseCache.clear();
-  
+
   logger.info('Response cache cleared');
-  
+
   res.json({
     success: true,
     message: 'Cache cleared',
@@ -895,12 +948,12 @@ app.get('/api/docs', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-  logger.warn('404 Not Found', { 
-    method: req.method, 
-    url: req.url, 
-    ip: req.ip 
+  logger.warn('404 Not Found', {
+    method: req.method,
+    url: req.url,
+    ip: req.ip
   });
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Not found',
     message: `The endpoint ${req.method} ${req.url} does not exist`,
     suggestion: 'Check /api/docs for available endpoints',
@@ -911,25 +964,25 @@ app.use((req, res) => {
 // Error handler with better error messages
 app.use((err, req, res, next) => {
   const isProduction = process.env.NODE_ENV === 'production';
-  
-  logger.error('Unhandled error', { 
-    error: err.message, 
+
+  logger.error('Unhandled error', {
+    error: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
     ip: req.ip
   });
-  
+
   // Send different responses based on environment
   if (isProduction) {
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal server error',
       message: 'An unexpected error occurred. Please try again later.',
       requestId: crypto.randomBytes(8).toString('hex'),
       timestamp: new Date().toISOString()
     });
   } else {
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal server error',
       message: err.message,
       stack: err.stack,
@@ -969,7 +1022,7 @@ if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   // Graceful shutdown
   process.on('SIGTERM', async () => {
     logger.info('SIGTERM received, shutting down gracefully');
-    
+
     // Close server
     server.close(() => {
       logger.info('HTTP server closed');
@@ -989,7 +1042,7 @@ if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
 
   process.on('SIGINT', async () => {
     logger.info('SIGINT received, shutting down gracefully');
-    
+
     server.close(() => {
       logger.info('HTTP server closed');
     });
