@@ -140,7 +140,7 @@ All notable changes to this project will be documented in this file.
 - `VERCEL`: Automatically set by Vercel (used for serverless detection)
 
 #### New Dependencies
-- `helmet` (^7.x): Security headers
+- `helmet` (^8.x): Security headers
 - `compression` (^1.x): Response compression
 - `cors` (^2.x): CORS support
 
