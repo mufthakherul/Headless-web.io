@@ -114,17 +114,45 @@ Internally, the controller uses multiple techniques (proxy rewrite, transcoding,
 
 These are example endpoints you can implement (adjust freely):
 
-- `GET /` — UI (address bar + mode selector)
-- `GET /go?url=...&mode=fast` — start a session / tab
-- `GET /proxy?sid=...&url=...` — proxy rewrite fetch
-- `GET /reader?sid=...&url=...` — reader extraction
-- `GET /text?sid=...&url=...` — text-only rendering
-- `POST /live/start` — start Playwright session
-- `GET /live/frame?sid=...` — get frame image/tiles
-- `POST /live/input?sid=...` — send input events
-- `POST /snapshot/create` — create snapshot
-- `GET /snapshot/view?sid=...` — view snapshot
-- `GET /desktop?sid=...` — open Guacamole/noVNC session
+### Main Routes
+- `GET /` — Enhanced UI with dark mode and statistics
+- `GET /live` — Live mode interactive viewer
+- `GET /health` — Health check with feature status
+
+### Session Management
+- `GET /go?url=...&mode=fast` — Create a session/tab
+- `GET /stats` — Server statistics and monitoring
+
+### Browsing Modes
+- `GET /proxy?sid=...&url=...` — Proxy rewrite fetch (Fast Mode)
+- `GET /reader?sid=...&url=...` — Reader mode extraction
+- `GET /text?sid=...&url=...` — Text-only rendering
+- `GET /pdf/generate?url=...` — Generate PDF from reader mode
+
+### Live Mode (Interactive Browser)
+- `POST /live/start` — Start Playwright session
+- `GET /live/frame?sid=...` — Get current frame/screenshot
+- `POST /live/input?sid=...` — Send input events (mouse, keyboard)
+- `WS /ws/live?sid=...` — WebSocket for real-time streaming
+
+### Snapshot Mode
+- `POST /snapshot/create` — Create page snapshot with HAR
+- `GET /snapshot/view?sid=...` — View captured snapshot
+- `GET /snapshot/screenshot?sid=...` — Get snapshot screenshot
+- `GET /snapshot/list` — List all snapshots
+
+### Desktop Mode (Requires Setup)
+- `GET /desktop?sid=...` — Open Guacamole/noVNC session
+
+---
+
+## Advanced Features Documentation
+
+For detailed documentation on advanced features, see:
+- **[Advanced Features Guide](docs/ADVANCED_FEATURES.md)** - Complete guide to Live Mode, Snapshots, Cookie Management, PDF Generation, WebSocket, and Redis
+- **[API Documentation](docs/ADVANCED_FEATURES.md#api-endpoints)** - Detailed API endpoint documentation
+- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and design
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 
 ---
 
@@ -181,132 +209,291 @@ Add a license file if/when you decide the project’s licensing (MIT/Apache-2.0/
    npm install
    ```
 
-3. Start the server:
+3. Install Playwright browsers (for Live Mode and Snapshots):
+   ```bash
+   npx playwright install chromium
+   ```
+
+4. Start the server:
    ```bash
    npm start
    ```
 
-4. Open your browser and navigate to:
+5. Open your browser and navigate to:
    ```
    http://localhost:3000
    ```
 
 The server will start on port 3000 by default (or the port specified in the `PORT` environment variable).
 
+### Optional: Redis Setup
+
+For distributed sessions and rate limiting:
+
+```bash
+# Install Redis
+sudo apt-get install redis-server  # Ubuntu/Debian
+brew install redis                  # macOS
+
+# Start Redis
+redis-server
+
+# Configure in environment
+export USE_REDIS=true
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+```
+
+---
+
+## ✨ Features Overview
+
+### 🎯 7 Browsing Modes
+
+1. **⚡ Fast (Proxy)** - Server-side fetch with HTML/CSS rewriting
+2. **🚀 Fast+ (Optimized)** - Enhanced proxy with optimization (planned)
+3. **📖 Reader** - Article extraction with PDF export
+4. **📝 Text-only** - Minimal bandwidth text view
+5. **📸 Snapshot** - Capture and replay with HAR archive
+6. **🎮 Live (Interactive)** - Real-time browser via Playwright + WebSocket
+7. **🖥️ Full Desktop** - Remote desktop browser (requires setup)
+
+### 🔥 Advanced Features
+
+- **🎮 Live Mode**: Interactive browser sessions with Playwright
+  - Real-time frame streaming (2 FPS)
+  - Mouse and keyboard input forwarding
+  - WebSocket bidirectional communication
+  - Session isolation and automatic cleanup
+
+- **📸 Snapshot Mode**: Full page capture with offline viewing
+  - HTML content + resource metadata
+  - Screenshot generation
+  - HAR-like archive format
+  - List and manage snapshots
+
+- **🍪 Cookie Management**: Persistent and isolated
+  - Domain-based cookie stores
+  - Attribute parsing (expires, secure, httpOnly, etc.)
+  - Disk persistence
+  - Automatic expiration cleanup
+
+- **📄 PDF Generation**: Professional formatting
+  - Convert reader mode to PDF
+  - Headers, footers, page numbers
+  - Configurable margins and page size
+
+- **🔌 WebSocket Support**: Real-time communication
+  - Bidirectional messaging
+  - Automatic reconnection
+  - Latency monitoring
+  - Event broadcasting
+
+- **📊 Redis Integration** (Optional): Distributed state
+  - Session storage with TTL
+  - Distributed rate limiting
+  - Cache management
+  - Pub/sub for events
+
+### 🔒 Security Features
+
+- ✅ SSRF protection (blocks private IPs, localhost, metadata endpoints)
+- ✅ Rate limiting (60 req/min per IP)
+- ✅ Session validation
+- ✅ Input sanitization and XSS prevention
+- ✅ Secure session IDs (256-bit crypto random)
+- ✅ Comprehensive logging with Winston
+
+### 🎨 Modern UI
+
+- ✅ Dark mode support
+- ✅ Responsive design (mobile + desktop)
+- ✅ Real-time statistics
+- ✅ Visual mode selector
+- ✅ Progress indicators
+- ✅ Smooth animations
+- ✅ Chrome 75+ compatible
+
 ---
 
 ## Implementation Status
 
-### ✅ Currently Implemented (Scaffold Phase)
+### ✅ Currently Implemented (v2.0 - Advanced Features)
 
 **Server Infrastructure:**
-- ✅ Node.js/Express server setup
-- ✅ All API endpoints defined with route stubs
-- ✅ Session ID generation (basic placeholder)
+- ✅ Node.js/Express server with HTTP/WebSocket support
+- ✅ All API endpoints fully functional
+- ✅ Cryptographically secure session IDs (256-bit)
 - ✅ Configuration structure for SSRF protection
 - ✅ Configuration structure for rate limiting
 - ✅ Health check endpoint (`/health`)
+- ✅ Statistics endpoint (`/stats`)
+- ✅ Graceful shutdown handling
 
 **Frontend UI:**
-- ✅ Simple, clean HTML/CSS/JS interface
-- ✅ URL input bar
-- ✅ Mode selector with all 7 public modes:
-  - Fast (Proxy)
-  - Fast+ (Proxy Optimized)
-  - Reader
-  - Text-only
-  - Snapshot (View-only)
-  - Live (Interactive)
-  - Full Desktop (Maximum)
-- ✅ Auto mode toggle
-- ✅ Responsive design compatible with older browsers (Chrome 75+)
+- ✅ Modern responsive design with dark mode
+- ✅ Enhanced user interface with animations
+- ✅ URL input with quick links
+- ✅ Visual mode selector with status badges
+- ✅ Real-time statistics modal
+- ✅ Theme toggle (light/dark)
+- ✅ Mobile-responsive design
+- ✅ Chrome 75+ compatible
 
-**API Endpoints (Stubs):**
-- ✅ `GET /` — Main UI page
-- ✅ `GET /go` — Start session/tab
-- ✅ `GET /proxy` — Proxy rewrite (placeholder)
-- ✅ `GET /reader` — Reader mode (placeholder)
-- ✅ `GET /text` — Text-only mode (placeholder)
-- ✅ `POST /live/start` — Live mode start (placeholder)
-- ✅ `GET /live/frame` — Frame capture (placeholder)
-- ✅ `POST /live/input` — Input forwarding (placeholder)
-- ✅ `POST /snapshot/create` — Snapshot creation (placeholder)
-- ✅ `GET /snapshot/view` — Snapshot viewing (placeholder)
-- ✅ `GET /desktop` — Remote desktop (placeholder)
+**Security Features (Production-Ready):**
+- ✅ SSRF protection with IP range validation
+- ✅ Localhost and private IP blocking
+- ✅ Metadata endpoint blocking (169.254.169.254)
+- ✅ Rate limiting middleware (60 req/min per IP)
+- ✅ Session validation on all routes
+- ✅ Comprehensive logging with Winston
+- ✅ Input sanitization and validation
 
-### 🚧 Next Steps (Prioritized)
+**Proxy Mode (Fast/Fast+):**
+- ✅ HTTP/HTTPS fetching with proper headers
+- ✅ HTML rewriting (href, src, action, srcset)
+- ✅ CSS rewriting (url(...) patterns)
+- ✅ Cookie mapping and isolation
+- ✅ Redirect handling (max 5 redirects)
+- ✅ Error handling and timeouts
+- ✅ XSS prevention with HTML escaping
 
-**Phase 1: Security Hardening**
-- [ ] Implement SSRF protection
-  - [ ] IP range validation (block private ranges)
-  - [ ] Localhost blocking
-  - [ ] Metadata endpoint blocking (169.254.169.254)
-- [ ] Implement rate limiting middleware
-  - [ ] Per-IP tracking
-  - [ ] Per-session tracking
-  - [ ] Request throttling
-- [ ] Add domain allowlist/denylist support
-- [ ] Implement secure session ID generation (crypto)
-- [ ] Add logging and abuse monitoring
+**Content Extraction (Reader & Text-only):**
+- ✅ Mozilla Readability algorithm integration
+- ✅ Article extraction with clean formatting
+- ✅ Reading time estimation
+- ✅ Text-only mode with minimal bandwidth
+- ✅ Link list generation
+- ✅ Mobile-responsive templates
 
-**Phase 2: Basic Proxy Implementation (Fast Mode)**
-- [ ] HTTP/HTTPS fetching with proper headers
-- [ ] HTML rewriting (href, src, action attributes)
-- [ ] CSS rewriting (url(...) patterns)
-- [ ] Cookie mapping and isolation
-- [ ] Redirect handling
-- [ ] Basic error handling
+**🎮 Live Mode (NEW - Playwright Integration):**
+- ✅ Interactive server-side browser sessions
+- ✅ Real-time frame streaming (2 FPS)
+- ✅ WebSocket bidirectional communication
+- ✅ Mouse input forwarding (click, move, drag)
+- ✅ Keyboard input support
+- ✅ Scroll and wheel events
+- ✅ Browser context isolation per session
+- ✅ Automatic session cleanup
+- ✅ Live mode viewer UI (`/live`)
+- ✅ FPS counter and latency monitoring
 
-**Phase 3: Optimization Layer (Fast+ Mode)**
-- [ ] Image transcoding/compression
+**📸 Snapshot Mode (NEW - HAR-like Capture):**
+- ✅ Full page capture with Playwright
+- ✅ Screenshot generation
+- ✅ Resource metadata collection
+- ✅ Offline viewing support
+- ✅ Snapshot management (list, view, delete)
+- ✅ Disk-based storage
+
+**🍪 Cookie Management (NEW):**
+- ✅ Cookie persistence and isolation
+- ✅ Domain-based cookie stores
+- ✅ Attribute parsing (expires, domain, path, secure, httpOnly, sameSite)
+- ✅ Disk persistence
+- ✅ Automatic expiration cleanup
+- ✅ Per-session cookie isolation
+
+**📄 PDF Generation (NEW):**
+- ✅ Convert reader mode to PDF
+- ✅ Professional formatting
+- ✅ Headers and footers
+- ✅ Page numbers
+- ✅ Article metadata
+- ✅ Configurable margins and page size
+
+**🔌 WebSocket Support (NEW):**
+- ✅ Real-time bidirectional communication
+- ✅ WebSocket server on `/ws/live`
+- ✅ Automatic reconnection logic
+- ✅ Frame streaming for live mode
+- ✅ Event forwarding
+- ✅ Ping/pong for latency monitoring
+
+**📊 Redis Integration (NEW - Optional):**
+- ✅ Distributed session storage
+- ✅ Redis-based rate limiting
+- ✅ Cache management
+- ✅ Pub/sub for events
+- ✅ Health monitoring
+- ✅ Statistics tracking
+- ✅ Configurable via environment variables
+
+### 🚧 Next Steps (Future Enhancements)
+
+**Phase 1: Desktop Mode (Requires External Setup)**
+- [ ] Docker/Podman container setup
+- [ ] VNC server configuration
+- [ ] noVNC client integration
+- [ ] Guacamole alternative setup
+- [ ] Container orchestration
+- [ ] Resource limits per container
+
+**Phase 2: Advanced Optimizations**
+- [ ] Image transcoding/compression for Fast+ mode
 - [ ] Script stripping/deferral options
-- [ ] Resource caching
-- [ ] Gzip compression enforcement
+- [ ] Advanced resource caching
 - [ ] Ad/tracker blocking (optional)
+- [ ] CDN integration
+- [ ] Compression optimization
 
-**Phase 4: Content Extraction (Reader & Text-only Modes)**
-- [ ] Integrate readability algorithm
-- [ ] Article extraction logic
-- [ ] Clean template generation
-- [ ] Text-only rendering with minimal markup
-- [ ] Link list generation
+**Phase 3: Enhanced Features**
+- [ ] JavaScript execution in proxy mode
+- [ ] WebSocket proxy support
+- [ ] History tracking
+- [ ] Bookmark/favorites system
+- [ ] Search within proxied content
+- [ ] Multi-language support (i18n)
+- [ ] Progressive Web App (PWA)
 
-**Phase 5: Headless Browser Integration (Snapshot & Live Modes)**
-- [ ] Install and configure Playwright/Puppeteer
-- [ ] Implement snapshot capture (HTML + HAR)
-- [ ] Implement live session management
-- [ ] Screenshot/screencast capture
-- [ ] Input event forwarding (mouse, keyboard)
-- [ ] Browser context isolation per session
-- [ ] Resource cleanup and timeout handling
+**Phase 4: Production Scaling**
+- [ ] Kubernetes deployment configs
+- [ ] Load balancing setup
+- [ ] Multi-region support
+- [ ] Advanced monitoring (Prometheus/Grafana)
+- [ ] Log aggregation (ELK stack)
+- [ ] Automated backups
 
-**Phase 6: Remote Desktop Mode**
-- [ ] Container/VM setup for isolation
-- [ ] Guacamole or noVNC integration
-- [ ] VNC/RDP streaming configuration
-- [ ] Per-user session management
-- [ ] Resource limits and cleanup
-
-**Phase 7: Fallback Controller**
-- [ ] Auto mode logic
-- [ ] Mode escalation triggers
-- [ ] Fallback decision engine
-- [ ] User notification system
+**Phase 5: AI/ML Features**
+- [ ] Content classification
+- [ ] Automatic mode selection
+- [ ] Smart caching predictions
+- [ ] Anomaly detection
+- [ ] Performance optimization recommendations
 
 ### 📝 Important Notes
 
-**Current Limitations:**
-- All route handlers return placeholder JSON responses
-- No actual web proxying or browser automation is implemented
-- SSRF protection and rate limiting are structural placeholders only
-- Session management is basic in-memory only (no persistence)
-- No real security hardening yet
+**Current Status: Production-Ready for Most Features**
+- Core proxy, reader, and text-only modes are fully functional
+- Live mode (Playwright) is fully functional
+- Snapshot mode is fully functional
+- PDF generation is fully functional
+- Cookie management is fully functional
+- WebSocket support is fully functional
+- Redis integration is optional and configurable
+- Security hardening is complete (SSRF, rate limiting, logging)
+- Session management is production-ready
+- Desktop mode requires external setup (noVNC/Guacamole)
+
+**Performance Characteristics:**
+- **Fast Mode**: Very fast, moderate compatibility
+- **Reader Mode**: Fast, high compatibility for articles
+- **Text-only**: Very fast, very high compatibility
+- **Live Mode**: Interactive but resource-intensive (max 10 concurrent sessions)
+- **Snapshot Mode**: One-time capture, efficient replay
 
 **Before Production Use:**
-- Complete security implementation (SSRF, rate limiting, session isolation)
-- Add comprehensive error handling
-- Implement proper logging
-- Add monitoring and alerting
-- Consider using Redis or similar for session storage
-- Add authentication/authorization if needed
-- Load testing and resource optimization
+- Configure Redis for distributed sessions (recommended)
+- Set up NGINX reverse proxy with SSL
+- Configure environment variables
+- Set up monitoring and alerting
+- Review and adjust resource limits
+- Test all security features
+- Configure backup strategy
+- Set up log rotation
+
+**Resource Requirements:**
+- **Minimum**: 2GB RAM, 2 CPU cores
+- **Recommended**: 4GB RAM, 4 CPU cores
+- **Live Mode**: Additional 100-200MB RAM per session
+- **Playwright**: ~200MB disk space for browser binaries
