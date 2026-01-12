@@ -794,19 +794,83 @@
                 document.getElementById('account-email').value = userData.email || '';
                 document.getElementById('account-name').value = userData.name || '';
 
-                // Generate random stats for demo
-                document.getElementById('stat-sessions').textContent = Math.floor(Math.random() * 50) + 10;
-                document.getElementById('stat-messages').textContent = Math.floor(Math.random() * 200) + 50;
-                document.getElementById('total-browses').textContent = Math.floor(Math.random() * 100) + 20;
-                document.getElementById('total-downloads').textContent = Math.floor(Math.random() * 50) + 5;
-                document.getElementById('total-ai-chats').textContent = Math.floor(Math.random() * 80) + 15;
-                document.getElementById('account-age').textContent = Math.floor(Math.random() * 30) + 1 + 'd';
+                // Load real stats from server
+                await loadUserStats();
 
                 // Set avatar emoji
-                const emojis = ['👤', '😊', '🚀', '⭐', '🎯', '💡', '🌟', '🔥'];
-                document.getElementById('avatar-emoji').textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                const savedAvatar = localStorage.getItem('userAvatar');
+                if (savedAvatar) {
+                    document.getElementById('avatar-emoji').textContent = savedAvatar;
+                } else {
+                    const emojis = ['👤', '😊', '🚀', '⭐', '🎯', '💡', '🌟', '🔥'];
+                    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+                    document.getElementById('avatar-emoji').textContent = randomEmoji;
+                    localStorage.setItem('userAvatar', randomEmoji);
+                }
             } catch (error) {
                 console.error('Failed to load user data:', error);
+            }
+        }
+
+        // Load real user statistics from server
+        async function loadUserStats() {
+            try {
+                const response = await fetch('/auth/stats', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.stats) {
+                    const stats = data.stats;
+                    
+                    // Update stats display
+                    document.getElementById('total-ai-chats').textContent = stats.chat_count || 0;
+                    document.getElementById('total-downloads').textContent = stats.download_count || 0;
+                    
+                    // Calculate account age
+                    if (user.created_at) {
+                        const createdDate = new Date(user.created_at);
+                        const now = new Date();
+                        const diffDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays < 1) {
+                            document.getElementById('account-age').textContent = 'Today';
+                        } else if (diffDays < 30) {
+                            document.getElementById('account-age').textContent = diffDays + 'd';
+                        } else if (diffDays < 365) {
+                            document.getElementById('account-age').textContent = Math.floor(diffDays / 30) + 'mo';
+                        } else {
+                            document.getElementById('account-age').textContent = Math.floor(diffDays / 365) + 'y';
+                        }
+                    }
+
+                    // Update sidebar stats
+                    document.getElementById('stat-sessions').textContent = (stats.chat_count || 0) + (stats.download_count || 0);
+                    document.getElementById('stat-messages').textContent = stats.chat_count || 0;
+                    
+                    // Estimate total browses (placeholder until we track this)
+                    document.getElementById('total-browses').textContent = Math.floor((stats.chat_count || 0) * 1.5);
+                } else {
+                    // Set defaults if stats not available
+                    document.getElementById('total-ai-chats').textContent = '0';
+                    document.getElementById('total-downloads').textContent = '0';
+                    document.getElementById('total-browses').textContent = '0';
+                    document.getElementById('account-age').textContent = 'New';
+                    document.getElementById('stat-sessions').textContent = '0';
+                    document.getElementById('stat-messages').textContent = '0';
+                }
+            } catch (error) {
+                console.error('Failed to load user stats:', error);
+                // Set defaults on error
+                document.getElementById('total-ai-chats').textContent = '-';
+                document.getElementById('total-downloads').textContent = '-';
+                document.getElementById('total-browses').textContent = '-';
+                document.getElementById('account-age').textContent = '-';
+                document.getElementById('stat-sessions').textContent = '-';
+                document.getElementById('stat-messages').textContent = '-';
             }
         }
 
@@ -925,9 +989,82 @@
             showNotification('Preferences saved successfully!', 'success');
         }
 
-        // Upload avatar
+        // Upload avatar - Show emoji picker
         function uploadAvatar() {
-            document.getElementById('avatar-input').click();
+            const emojis = ['👤', '😊', '🚀', '⭐', '🎯', '💡', '🌟', '🔥', '🎨', '🎭', '🎪', '🎬', '🎮', '🎲', '🎯', '🎼', '🎵', '🎸', '🎹', '🎺', '🎻', '🎤', '🎧', '🎬', '📱', '💻', '⌨️', '🖥️', '🖱️', '🖨️', '📷', '📸', '📹', '🎥', '📽️', '🔬', '🔭', '📡', '🛸', '🚁', '🚀', '🛰️', '💫', '⭐', '🌟', '✨', '⚡', '🔥', '💧', '🌊', '🌈', '☀️', '🌙', '⭐'];
+            
+            const picker = document.createElement('div');
+            picker.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--bg-main);
+                border-radius: 16px;
+                padding: 30px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                z-index: 10000;
+                max-width: 400px;
+                max-height: 500px;
+                overflow-y: auto;
+            `;
+            
+            picker.innerHTML = `
+                <h3 style="color: var(--text-primary); margin-bottom: 20px; text-align: center;">Choose Your Avatar</h3>
+                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px;">
+                    ${emojis.map(emoji => `
+                        <button onclick="selectEmoji('${emoji}')" style="
+                            font-size: 32px;
+                            padding: 10px;
+                            border: 2px solid var(--border);
+                            border-radius: 8px;
+                            background: var(--bg-secondary);
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        " onmouseover="this.style.transform='scale(1.2)'; this.style.borderColor='var(--primary)'" onmouseout="this.style.transform='scale(1)'; this.style.borderColor='var(--border)'">${emoji}</button>
+                    `).join('')}
+                </div>
+                <button onclick="closeEmojiPicker()" style="
+                    width: 100%;
+                    padding: 12px;
+                    background: var(--bg-secondary);
+                    border: 1px solid var(--border);
+                    border-radius: 8px;
+                    color: var(--text-primary);
+                    cursor: pointer;
+                    font-weight: 500;
+                ">Cancel</button>
+            `;
+            
+            const overlay = document.createElement('div');
+            overlay.id = 'emoji-picker-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+            `;
+            overlay.onclick = () => closeEmojiPicker();
+            
+            document.body.appendChild(overlay);
+            overlay.appendChild(picker);
+        }
+
+        function selectEmoji(emoji) {
+            document.getElementById('avatar-emoji').textContent = emoji;
+            localStorage.setItem('userAvatar', emoji);
+            showNotification('Avatar updated!', 'success');
+            closeEmojiPicker();
+        }
+
+        function closeEmojiPicker() {
+            const overlay = document.getElementById('emoji-picker-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
         }
 
         document.getElementById('avatar-input').addEventListener('change', (e) => {
@@ -936,6 +1073,7 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     document.getElementById('avatar-emoji').textContent = '📸';
+                    localStorage.setItem('userAvatar', '📸');
                     showNotification('Avatar uploaded! (Demo mode)', 'success');
                 };
                 reader.readAsDataURL(file);
