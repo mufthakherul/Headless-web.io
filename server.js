@@ -15,13 +15,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Block private IP ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 // Block localhost: 127.0.0.1, ::1
 // Block link-local/metadata: 169.254.0.0/16 (especially 169.254.169.254)
+// SECURITY WARNING: This is a placeholder. In production, this MUST be implemented.
 const SSRF_CONFIG = {
   blockPrivateRanges: true,
   blockLocalhost: true,
   blockMetadataIP: true,
   // TODO: Implement IP validation function
+  // SECURITY: This currently returns false (no blocking). MUST implement before production.
   isBlockedIP: (ip) => {
     // Placeholder - implement actual IP range checking
+    // Example implementation needed:
+    // - Parse IP address
+    // - Check if in 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+    // - Check if 127.0.0.1 or ::1
+    // - Check if in 169.254.0.0/16
     return false;
   }
 };
@@ -42,7 +49,9 @@ const sessions = new Map();
 
 function generateSessionId() {
   // TODO: Use cryptographically secure random generation
-  return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  // Using crypto for better security than Math.random()
+  const crypto = require('crypto');
+  return 'session_' + Date.now() + '_' + crypto.randomBytes(6).toString('hex');
 }
 
 // ===== ROUTE HANDLERS =====
@@ -60,8 +69,10 @@ app.get('/go', (req, res) => {
     return res.status(400).json({ error: 'URL parameter is required' });
   }
   
-  // TODO: Validate URL and check against SSRF protections
+  // TODO: Validate URL format (ensure it's a valid HTTP/HTTPS URL)
+  // TODO: Check URL against SSRF protections before allowing
   // TODO: Apply rate limiting
+  // SECURITY: In production, this MUST validate the URL and check SSRF_CONFIG.isBlockedIP
   
   const sessionId = generateSessionId();
   sessions.set(sessionId, {

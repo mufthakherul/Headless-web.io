@@ -350,7 +350,7 @@
             
             try {
                 // Call the /go endpoint to start a session
-                const response = await fetch(`/go?url=${encodeURIComponent(url)}&mode=${mode}&auto=${autoMode}`);
+                const response = await fetch(`/go?url=${encodeURIComponent(url)}&mode=${encodeURIComponent(mode)}&auto=${autoMode}`);
                 const data = await response.json();
                 
                 resultContent.textContent = JSON.stringify(data, null, 2);
