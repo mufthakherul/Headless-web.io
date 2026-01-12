@@ -18,7 +18,7 @@ const AI_PROVIDERS = {
     gemini: {
         name: 'Google Gemini',
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-        models: ['gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'],
+        models: ['gemini-2.0-flash-exp', 'gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro', 'gemini-3.0-flash', 'gemini-pro'],
         requiresKey: true
     },
     openai: {
