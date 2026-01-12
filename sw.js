@@ -95,8 +95,10 @@ self.addEventListener('sync', event => {
 });
 
 async function syncData() {
-  // Implement data sync logic here
+  // TODO: Implement data sync logic for offline actions
+  // This could include syncing chat history, downloads, profile updates, etc.
   console.log('Syncing data...');
+  // Example: Send queued API requests, sync local storage with server, etc.
 }
 
 // Push notifications (optional for future use)
