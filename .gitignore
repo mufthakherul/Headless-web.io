@@ -34,3 +34,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Application data
+snapshots/
+cookies/

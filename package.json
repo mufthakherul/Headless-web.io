@@ -1,7 +1,7 @@
 {
   "name": "headless-web",
-  "version": "0.1.0",
-  "description": "A web-based headless browsing gateway with multiple compatibility modes",
+  "version": "2.0.0",
+  "description": "Advanced web-based headless browsing gateway with multiple compatibility modes including Live Mode, Snapshots, and PDF generation",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -14,7 +14,13 @@
     "proxy",
     "headless",
     "browser",
-    "gateway"
+    "gateway",
+    "playwright",
+    "websocket",
+    "snapshot",
+    "pdf-generation",
+    "redis",
+    "cookie-management"
   ],
   "author": "",
   "license": "MIT",
@@ -23,8 +29,11 @@
     "axios": "^1.13.2",
     "cheerio": "^1.1.2",
     "express": "^4.18.2",
+    "ioredis": "^5.9.1",
     "jsdom": "^27.4.0",
-    "winston": "^3.19.0"
+    "playwright": "^1.57.0",
+    "winston": "^3.19.0",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "jest": "^30.2.0",
