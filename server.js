@@ -65,10 +65,11 @@ app.use(cors({
 // Middleware
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-// Serve static files from web directory for backward compatibility
-app.use(express.static(path.join(__dirname, 'web')));
-// Serve static files from public directory if it exists
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve static files from root directory
+app.use(express.static(__dirname, {
+  index: false // Don't auto-serve index.html, we handle it explicitly
+}));
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
