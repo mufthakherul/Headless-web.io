@@ -429,7 +429,7 @@
             border-radius: 12px;
             padding: 20px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
             position: relative;
         }
 
@@ -995,7 +995,7 @@
 
         <div class="footer">
             <p>
-                <strong>Headless-web Gateway v4.0</strong> | 
+                <strong>Headless-web Gateway v2.0</strong> | 
                 <a href="https://github.com/mufthakherul/Headless-web.io" target="_blank">View on GitHub</a> | 
                 <a href="/ai-chat.html">AI Chat</a> | 
                 <a href="/downloader.html">Media Tools</a>
@@ -1027,9 +1027,10 @@
             const authNav = document.getElementById('auth-nav');
 
             if (token && user) {
-                // User is logged in
+                // User is logged in - sanitize email to prevent XSS
+                const sanitizedEmail = user.email.split('@')[0].replace(/[<>]/g, '');
                 authNav.innerHTML = `
-                    <a href="/profile.html" class="stats-btn" style="text-decoration: none;">👤 ${user.email.split('@')[0]}</a>
+                    <a href="/profile.html" class="stats-btn" style="text-decoration: none;">👤 ${sanitizedEmail}</a>
                     <a href="/ai-chat.html" class="stats-btn" style="text-decoration: none;">🤖 AI</a>
                     <a href="/downloader.html" class="stats-btn" style="text-decoration: none;">⬇️ Tools</a>
                     <button class="stats-btn" onclick="logout()" style="background: rgba(239, 68, 68, 0.8); border-color: rgba(239, 68, 68, 0.9);">Logout</button>
