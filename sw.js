@@ -103,11 +103,13 @@ async function syncData() {
 
 // Push notifications (optional for future use)
 self.addEventListener('push', event => {
+  // Use inline SVG as fallback if favicon.ico doesn't exist
+  const iconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23667eea'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E🌐%3C/text%3E%3C/svg%3E";
+  
   const options = {
     body: event.data?.text() || 'New notification',
-    // Note: Ensure favicon.ico exists at root, or replace with actual icon path
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: iconSvg,
+    badge: iconSvg,
     vibrate: [200, 100, 200]
   };
 

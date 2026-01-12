@@ -168,6 +168,18 @@ class ScraperManager {
                 };
             }
 
+            // Validate format and quality parameters
+            const validFormats = ['video', 'audio'];
+            const validQualities = ['highest', 'high', 'medium', 'low'];
+            
+            if (!validFormats.includes(format)) {
+                format = 'video';
+            }
+            
+            if (!validQualities.includes(quality)) {
+                quality = 'highest';
+            }
+
             // Get video info
             const info = await ytdl.getInfo(url);
             const videoId = info.videoDetails.videoId;
