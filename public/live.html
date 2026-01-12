@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -57,6 +58,74 @@
             cursor: not-allowed;
         }
 
+        .toolbar select {
+            padding: 8px 12px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #1a1a1a;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .toolbar select:hover {
+            border-color: #667eea;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 400px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            animation: slideInRight 0.3s ease-out, slideOutRight 0.3s ease-out 3.7s forwards;
+            z-index: 1000;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .notification.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+        }
+
+        .notification.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            color: #86efac;
+        }
+
+        .notification.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid #3b82f6;
+            color: #93c5fd;
+        }
+
         .status {
             padding: 10px 20px;
             background: #2a2a2a;
@@ -87,8 +156,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .viewer-container {
@@ -128,8 +204,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .controls {
@@ -202,6 +283,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="toolbar">
         <button id="back-btn" title="Go Back">←</button>
@@ -210,6 +292,12 @@
         <input type="text" id="url-input" placeholder="Navigate to URL...">
         <button id="go-btn">Go</button>
         <button id="home-btn">Home</button>
+        <select id="fps-selector" title="Adjust frame rate for bandwidth">
+            <option value="1">1 FPS (Low Bandwidth)</option>
+            <option value="2" selected>2 FPS (Normal)</option>
+            <option value="5">5 FPS (High Quality)</option>
+            <option value="10">10 FPS (Max Quality)</option>
+        </select>
     </div>
 
     <div class="status">
@@ -267,6 +355,8 @@
         let ws = null;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
+        let currentFPS = 2;
+        let frameInterval = 500; // 500ms for 2 FPS
 
         const elements = {
             statusDot: document.getElementById('status-dot'),
@@ -279,13 +369,25 @@
             infoPanel: document.getElementById('info-panel'),
             infoSession: document.getElementById('info-session'),
             infoResolution: document.getElementById('info-resolution'),
-            infoLatency: document.getElementById('info-latency')
+            infoLatency: document.getElementById('info-latency'),
+            fpsSelector: document.getElementById('fps-selector')
         };
 
         let frameCount = 0;
         let lastFpsUpdate = Date.now();
         let lastFrameTime = Date.now();
 
+        // Notification system
+        function showNotification(message, type = 'info', duration = 4000) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, duration);
+        }
         function connectWebSocket() {
             ws = new WebSocket(wsUrl);
 
@@ -308,7 +410,7 @@
                 console.log('WebSocket closed');
                 elements.statusDot.classList.add('disconnected');
                 elements.statusText.textContent = 'Disconnected';
-                
+
                 if (reconnectAttempts < maxReconnectAttempts) {
                     reconnectAttempts++;
                     elements.statusText.textContent = `Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
@@ -318,6 +420,7 @@
 
             ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
+                showNotification('WebSocket connection error. Check your connection.', 'error');
             };
         }
 
@@ -325,6 +428,7 @@
             switch (data.type) {
                 case 'connected':
                     console.log('Session connected:', data.sessionId);
+                    showNotification('Connected to live browser', 'success');
                     break;
 
                 case 'frame':
@@ -332,11 +436,12 @@
                     break;
 
                 case 'navigated':
-                    elements.urlInput.value = data.url;
+                    showNotification('Page loaded', 'info');
                     break;
 
                 case 'error':
                     console.error('Server error:', data.message);
+                    showNotification(`Error: ${data.message}`, 'error');
                     break;
 
                 case 'pong':
@@ -348,13 +453,13 @@
 
         function updateFrame(data) {
             elements.frame.src = 'data:image/png;base64,' + data.image;
-            
+
             if (data.pageInfo) {
                 elements.pageTitle.textContent = data.pageInfo.title || 'Untitled';
                 elements.urlInput.value = data.pageInfo.url || '';
-                
+
                 if (data.pageInfo.viewport) {
-                    elements.infoResolution.textContent = 
+                    elements.infoResolution.textContent =
                         `${data.pageInfo.viewport.width}x${data.pageInfo.viewport.height}`;
                 }
             }
@@ -435,6 +540,13 @@
             }
         });
 
+        // FPS selector
+        elements.fpsSelector.addEventListener('change', (e) => {
+            currentFPS = parseInt(e.target.value);
+            frameInterval = Math.round(1000 / currentFPS);
+            showNotification(`Frame rate changed to ${currentFPS} FPS`, 'info', 2000);
+        });
+
         // Toolbar buttons
         document.getElementById('go-btn').addEventListener('click', () => {
             const url = elements.urlInput.value;
@@ -476,6 +588,26 @@
             }
         });
 
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key.toLowerCase()) {
+                    case '?':
+                        e.preventDefault();
+                        showNotification('Shortcuts: Ctrl+L = Focus URL bar | F11 = Fullscreen | I = Toggle Info', 'info', 5000);
+                        break;
+                    case 'l':
+                        e.preventDefault();
+                        elements.urlInput.focus();
+                        break;
+                }
+            } else if (e.key === 'i' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+                e.preventDefault();
+                const panel = elements.infoPanel;
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+
         // Ping to measure latency
         setInterval(() => {
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -490,4 +622,5 @@
         connectWebSocket();
     </script>
 </body>
+
 </html>
