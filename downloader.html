@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Headless-web - Media Downloader & Web Scraper</title>
     <meta name="description" content="Download YouTube videos, images, scrape websites">
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Headless-web">
+    
     <style>
         :root {
             --primary: #667eea;
@@ -415,6 +423,47 @@
             }
         }
 
+        /* Tooltip */
+        [data-tooltip] {
+            position: relative;
+        }
+
+        [data-tooltip]::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-8px);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 1000;
+        }
+
+        [data-tooltip]::after {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        [data-tooltip]:hover::before,
+        [data-tooltip]:hover::after {
+            opacity: 1;
+        }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -477,24 +526,34 @@
                         <label>Type</label>
                         <select id="dl-type" onchange="updateFormatOptions()">
                             <option value="youtube-video">YouTube Video</option>
-                            <option value="youtube-audio">YouTube Audio</option>
+                            <option value="youtube-audio">YouTube Audio (MP3)</option>
                             <option value="image">Image</option>
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label id="quality-label">Quality</label>
+                    <div class="form-group" id="quality-group">
+                        <label id="quality-label">Video Quality</label>
                         <select id="dl-quality">
-                            <option value="highest">Highest</option>
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
+                            <option value="highest">Highest Available (Best Quality)</option>
+                            <option value="high">High (720p)</option>
+                            <option value="medium">Medium (480p)</option>
+                            <option value="low">Low (360p - Faster Download)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="audio-quality-group" style="display: none;">
+                        <label id="audio-quality-label">Audio Quality</label>
+                        <select id="dl-audio-quality">
+                            <option value="highest">Highest Available (Best Quality)</option>
+                            <option value="high">High (192kbps)</option>
+                            <option value="medium">Medium (128kbps)</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="button-group">
-                    <button class="btn btn-primary" id="dl-btn" onclick="downloadMedia()">
+                    <button class="btn btn-primary" id="dl-btn" onclick="downloadMedia()" 
+                        data-tooltip="Download media from the URL above" aria-label="Start download">
                         <span class="btn-text">Start Download</span>
                     </button>
                 </div>
@@ -611,15 +670,18 @@
         // Update format options based on type
         function updateFormatOptions() {
             const type = document.getElementById('dl-type').value;
-            const qualityLabel = document.getElementById('quality-label');
-            const qualitySelect = document.getElementById('dl-quality');
+            const qualityGroup = document.getElementById('quality-group');
+            const audioQualityGroup = document.getElementById('audio-quality-group');
 
             if (type === 'image') {
-                qualityLabel.style.display = 'none';
-                qualitySelect.style.display = 'none';
+                qualityGroup.style.display = 'none';
+                audioQualityGroup.style.display = 'none';
+            } else if (type === 'youtube-audio') {
+                qualityGroup.style.display = 'none';
+                audioQualityGroup.style.display = 'block';
             } else {
-                qualityLabel.style.display = 'block';
-                qualitySelect.style.display = 'block';
+                qualityGroup.style.display = 'block';
+                audioQualityGroup.style.display = 'none';
             }
         }
 
@@ -641,11 +703,21 @@
             }
 
             const type = document.getElementById('dl-type').value;
-            const quality = document.getElementById('dl-quality').value;
+            let quality;
+            
+            if (type === 'youtube-audio') {
+                quality = document.getElementById('dl-audio-quality').value;
+            } else if (type === 'youtube-video') {
+                quality = document.getElementById('dl-quality').value;
+            }
 
             const btn = document.getElementById('dl-btn');
             btn.disabled = true;
-            btn.innerHTML = '<span class="loading"></span>';
+            btn.innerHTML = '<span class="loading"></span> Downloading...';
+
+            // Show progress container
+            const progressContainer = document.getElementById('dl-progress');
+            progressContainer.style.display = 'block';
 
             try {
                 const endpoint = type === 'image' ? '/download/image' : '/download/youtube';
@@ -665,10 +737,14 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    showMessage('dl-message', '✓ Download started!', 'success');
+                    showMessage('dl-message', '✓ Download completed successfully!', 'success');
 
-                    document.getElementById('dl-result-title').textContent = data.filename;
-                    document.getElementById('dl-result-meta').textContent = `Size: ${formatBytes(data.size)}`;
+                    const resultTitle = data.title || data.filename;
+                    const qualityInfo = data.quality ? ` (${data.quality === 'highest' ? 'Best Quality' : data.quality})` : '';
+                    
+                    document.getElementById('dl-result-title').textContent = resultTitle;
+                    document.getElementById('dl-result-meta').textContent = 
+                        `Size: ${formatBytes(data.size)}${qualityInfo}${data.duration ? ` • Duration: ${formatDuration(data.duration)}` : ''}`;
 
                     if (type === 'image') {
                         const preview = document.getElementById('dl-result-preview');
@@ -677,6 +753,9 @@
                     }
 
                     document.getElementById('dl-results').classList.add('active');
+                    
+                    // Update download history if on that tab
+                    loadDownloadHistory();
                 } else {
                     showMessage('dl-message', 'Error: ' + data.error, 'error');
                 }
@@ -685,6 +764,7 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<span class="btn-text">Start Download</span>';
+                progressContainer.style.display = 'none';
             }
         }
 
@@ -797,6 +877,14 @@
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
 
+        // Format duration (seconds to MM:SS)
+        function formatDuration(seconds) {
+            if (seconds === null || seconds === undefined || isNaN(seconds) || seconds < 0) return '';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
         // Logout
         function logout() {
             fetch('/auth/logout', { method: 'POST' });
@@ -804,6 +892,19 @@
             localStorage.removeItem('sessionId');
             localStorage.removeItem('user');
             window.location.href = '/login.html';
+        }
+
+        // Register Service Worker for PWA support
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
         }
     </script>
 </body>

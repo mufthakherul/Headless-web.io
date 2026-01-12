@@ -168,6 +168,20 @@ class ScraperManager {
                 };
             }
 
+            // Validate format and quality parameters
+            const validFormats = ['video', 'audio'];
+            const validQualities = ['highest', 'high', 'medium', 'low'];
+            
+            if (!validFormats.includes(format)) {
+                logger.warn('Invalid format parameter sanitized', { provided: format, default: 'video' });
+                format = 'video';
+            }
+            
+            if (!validQualities.includes(quality)) {
+                logger.warn('Invalid quality parameter sanitized', { provided: quality, default: 'highest' });
+                quality = 'highest';
+            }
+
             // Get video info
             const info = await ytdl.getInfo(url);
             const videoId = info.videoDetails.videoId;
@@ -183,15 +197,32 @@ class ScraperManager {
                 url,
                 title: info.videoDetails.title,
                 format,
+                quality,
                 status: 'downloading',
                 progress: 0,
                 startedAt: Date.now()
             });
 
-            // Download options
-            const downloadOptions = format === 'audio'
-                ? { quality: 'highestaudio', filter: 'audioonly' }
-                : { quality: quality === 'highest' ? 'highestvideo' : quality };
+            // Better download options based on quality
+            let downloadOptions;
+            if (format === 'audio') {
+                downloadOptions = { 
+                    quality: 'highestaudio', 
+                    filter: 'audioonly'
+                };
+            } else {
+                // Video quality mapping
+                const qualityMap = {
+                    'highest': 'highestvideo',
+                    'high': '720p',
+                    'medium': '480p',
+                    'low': '360p'
+                };
+                downloadOptions = { 
+                    quality: qualityMap[quality] || 'highestvideo',
+                    filter: 'videoandaudio'
+                };
+            }
 
             // Start download
             const stream = ytdl(url, downloadOptions);
@@ -243,7 +274,9 @@ class ScraperManager {
                         filepath,
                         size: stats.size,
                         title: info.videoDetails.title,
-                        duration: info.videoDetails.lengthSeconds
+                        duration: info.videoDetails.lengthSeconds,
+                        quality: quality,
+                        format: format
                     });
                 });
 
