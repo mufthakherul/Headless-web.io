@@ -48,9 +48,58 @@ app.use(express.static(path.join(__dirname, 'web')));
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
 
-// Logging middleware
+// Request metrics tracking
+const metrics = {
+  requests: {
+    total: 0,
+    byMethod: {},
+    byPath: {},
+    byStatus: {},
+    errors: 0
+  },
+  startTime: Date.now()
+};
+
+// Logging and metrics middleware
 app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  // Log request
   logger.request(req);
+  
+  // Track metrics
+  metrics.requests.total++;
+  metrics.requests.byMethod[req.method] = (metrics.requests.byMethod[req.method] || 0) + 1;
+  
+  // Capture response to track status codes
+  const originalSend = res.send;
+  res.send = function(data) {
+    const statusCode = res.statusCode;
+    metrics.requests.byStatus[statusCode] = (metrics.requests.byStatus[statusCode] || 0) + 1;
+    
+    if (statusCode >= 400) {
+      metrics.requests.errors++;
+    }
+    
+    // Track path metrics
+    const pathKey = req.path || 'unknown';
+    if (!metrics.requests.byPath[pathKey]) {
+      metrics.requests.byPath[pathKey] = { count: 0, totalTime: 0, avgTime: 0 };
+    }
+    metrics.requests.byPath[pathKey].count++;
+    
+    const responseTime = Date.now() - startTime;
+    metrics.requests.byPath[pathKey].totalTime += responseTime;
+    metrics.requests.byPath[pathKey].avgTime = Math.round(
+      metrics.requests.byPath[pathKey].totalTime / metrics.requests.byPath[pathKey].count
+    );
+    
+    // Add response time header
+    res.setHeader('X-Response-Time', `${responseTime}ms`);
+    
+    return originalSend.call(this, data);
+  };
+  
   next();
 });
 
@@ -442,8 +491,19 @@ app.get('/stats', async (req, res) => {
     const stats = {
       server: {
         uptime: process.uptime(),
+        uptimeFormatted: formatUptime(process.uptime()),
         memory: process.memoryUsage(),
-        activeSessions: sessions.size
+        activeSessions: sessions.size,
+        startTime: new Date(metrics.startTime).toISOString()
+      },
+      requests: {
+        total: metrics.requests.total,
+        byMethod: metrics.requests.byMethod,
+        byStatus: metrics.requests.byStatus,
+        errors: metrics.requests.errors,
+        errorRate: metrics.requests.total > 0 
+          ? ((metrics.requests.errors / metrics.requests.total) * 100).toFixed(2) + '%'
+          : '0%'
       },
       liveMode: liveManager.getStats(),
       snapshot: snapshotManager.getStats(),
@@ -464,6 +524,52 @@ app.get('/stats', async (req, res) => {
     });
   }
 });
+
+// Metrics endpoint (detailed request metrics)
+app.get('/metrics', (req, res) => {
+  const topPaths = Object.entries(metrics.requests.byPath)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 10)
+    .map(([path, data]) => ({
+      path,
+      requests: data.count,
+      avgResponseTime: data.avgTime + 'ms'
+    }));
+
+  res.json({
+    uptime: process.uptime(),
+    uptimeFormatted: formatUptime(process.uptime()),
+    totalRequests: metrics.requests.total,
+    requestsByMethod: metrics.requests.byMethod,
+    requestsByStatus: metrics.requests.byStatus,
+    errorCount: metrics.requests.errors,
+    errorRate: metrics.requests.total > 0 
+      ? ((metrics.requests.errors / metrics.requests.total) * 100).toFixed(2) + '%'
+      : '0%',
+    topEndpoints: topPaths,
+    memory: {
+      rss: Math.round(process.memoryUsage().rss / 1024 / 1024) + ' MB',
+      heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+      heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+    }
+  });
+});
+
+// Helper function to format uptime
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+  
+  return parts.join(' ');
+}
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -620,9 +726,14 @@ app.get('/api/docs', (req, res) => {
           example: '/health'
         },
         'GET /stats': {
-          description: 'Server statistics',
-          response: { server: 'object', liveMode: 'object', snapshot: 'object' },
+          description: 'Server statistics with comprehensive metrics',
+          response: { server: 'object', requests: 'object', liveMode: 'object', snapshot: 'object' },
           example: '/stats'
+        },
+        'GET /metrics': {
+          description: 'Detailed request metrics and performance data',
+          response: { uptime: 'number', totalRequests: 'number', topEndpoints: 'array', memory: 'object' },
+          example: '/metrics'
         }
       }
     },
