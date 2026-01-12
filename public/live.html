@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Mode - Headless-web Gateway</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            background: #2a2a2a;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .toolbar input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #1a1a1a;
+            color: white;
+            font-size: 14px;
+        }
+
+        .toolbar button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .toolbar button:hover {
+            background: #5568d3;
+        }
+
+        .toolbar button:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 10px 20px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.disconnected {
+            background: #ef4444;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .viewer-container {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 120px);
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #browser-frame {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            cursor: crosshair;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-btn:hover {
+            background: rgba(102, 126, 234, 1);
+            transform: scale(1.1);
+        }
+
+        .error-message {
+            padding: 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            margin: 20px;
+            color: #fca5a5;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(42, 42, 42, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            max-width: 300px;
+        }
+
+        .info-panel h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .info-label {
+            color: #888;
+        }
+
+        .info-value {
+            color: white;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button id="back-btn" title="Go Back">←</button>
+        <button id="forward-btn" title="Go Forward">→</button>
+        <button id="refresh-btn" title="Refresh">⟳</button>
+        <input type="text" id="url-input" placeholder="Navigate to URL...">
+        <button id="go-btn">Go</button>
+        <button id="home-btn">Home</button>
+    </div>
+
+    <div class="status">
+        <div class="status-indicator">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">Connecting...</span>
+        </div>
+        <div id="page-title"></div>
+        <div id="fps-counter">FPS: 0</div>
+    </div>
+
+    <div class="viewer-container">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Initializing live browser session...</p>
+        </div>
+
+        <img id="browser-frame" alt="Browser view" style="display: none;">
+
+        <div class="info-panel" id="info-panel" style="display: none;">
+            <h3>Session Info</h3>
+            <div class="info-row">
+                <span class="info-label">Session ID:</span>
+                <span class="info-value" id="info-session"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Resolution:</span>
+                <span class="info-value" id="info-resolution"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Latency:</span>
+                <span class="info-value" id="info-latency"></span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" id="info-btn" title="Toggle Info">ℹ️</button>
+            <button class="control-btn" id="fullscreen-btn" title="Fullscreen">⛶</button>
+        </div>
+    </div>
+
+    <script>
+        // Get session ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('sid');
+
+        if (!sessionId) {
+            document.body.innerHTML = '<div class="error-message">Error: No session ID provided. Please start a session from the main page.</div>';
+            throw new Error('No session ID');
+        }
+
+        // Initialize WebSocket connection
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/live?sid=${sessionId}`;
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        const elements = {
+            statusDot: document.getElementById('status-dot'),
+            statusText: document.getElementById('status-text'),
+            loading: document.getElementById('loading'),
+            frame: document.getElementById('browser-frame'),
+            pageTitle: document.getElementById('page-title'),
+            fpsCounter: document.getElementById('fps-counter'),
+            urlInput: document.getElementById('url-input'),
+            infoPanel: document.getElementById('info-panel'),
+            infoSession: document.getElementById('info-session'),
+            infoResolution: document.getElementById('info-resolution'),
+            infoLatency: document.getElementById('info-latency')
+        };
+
+        let frameCount = 0;
+        let lastFpsUpdate = Date.now();
+        let lastFrameTime = Date.now();
+
+        function connectWebSocket() {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                elements.statusDot.classList.remove('disconnected');
+                elements.statusText.textContent = 'Connected';
+                elements.loading.style.display = 'none';
+                elements.frame.style.display = 'block';
+                elements.infoSession.textContent = sessionId.substring(0, 20) + '...';
+                reconnectAttempts = 0;
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket closed');
+                elements.statusDot.classList.add('disconnected');
+                elements.statusText.textContent = 'Disconnected';
+                
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    elements.statusText.textContent = `Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`;
+                    setTimeout(connectWebSocket, 2000);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'connected':
+                    console.log('Session connected:', data.sessionId);
+                    break;
+
+                case 'frame':
+                    updateFrame(data);
+                    break;
+
+                case 'navigated':
+                    elements.urlInput.value = data.url;
+                    break;
+
+                case 'error':
+                    console.error('Server error:', data.message);
+                    break;
+
+                case 'pong':
+                    const latency = Date.now() - data.timestamp;
+                    elements.infoLatency.textContent = latency + 'ms';
+                    break;
+            }
+        }
+
+        function updateFrame(data) {
+            elements.frame.src = 'data:image/png;base64,' + data.image;
+            
+            if (data.pageInfo) {
+                elements.pageTitle.textContent = data.pageInfo.title || 'Untitled';
+                elements.urlInput.value = data.pageInfo.url || '';
+                
+                if (data.pageInfo.viewport) {
+                    elements.infoResolution.textContent = 
+                        `${data.pageInfo.viewport.width}x${data.pageInfo.viewport.height}`;
+                }
+            }
+
+            // Update FPS counter
+            frameCount++;
+            const now = Date.now();
+            if (now - lastFpsUpdate >= 1000) {
+                const fps = Math.round(frameCount / ((now - lastFpsUpdate) / 1000));
+                elements.fpsCounter.textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+
+            lastFrameTime = now;
+        }
+
+        function sendInput(event) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'input',
+                    event
+                }));
+            }
+        }
+
+        function navigate(url) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'navigate',
+                    url
+                }));
+            }
+        }
+
+        // Input handling
+        elements.frame.addEventListener('click', (e) => {
+            const rect = elements.frame.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width * 1280;
+            const y = (e.clientY - rect.top) / rect.height * 720;
+
+            sendInput({
+                type: 'click',
+                x: Math.round(x),
+                y: Math.round(y)
+            });
+        });
+
+        elements.frame.addEventListener('mousemove', (e) => {
+            const rect = elements.frame.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width * 1280;
+            const y = (e.clientY - rect.top) / rect.height * 720;
+
+            sendInput({
+                type: 'mousemove',
+                x: Math.round(x),
+                y: Math.round(y)
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+                e.preventDefault();
+                sendInput({
+                    type: 'keydown',
+                    key: e.key
+                });
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (!['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+                e.preventDefault();
+                sendInput({
+                    type: 'keyup',
+                    key: e.key
+                });
+            }
+        });
+
+        // Toolbar buttons
+        document.getElementById('go-btn').addEventListener('click', () => {
+            const url = elements.urlInput.value;
+            if (url) {
+                navigate(url);
+            }
+        });
+
+        elements.urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const url = elements.urlInput.value;
+                if (url) {
+                    navigate(url);
+                }
+            }
+        });
+
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+            const url = elements.urlInput.value;
+            if (url) {
+                navigate(url);
+            }
+        });
+
+        document.getElementById('home-btn').addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        document.getElementById('info-btn').addEventListener('click', () => {
+            const panel = elements.infoPanel;
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.getElementById('fullscreen-btn').addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
+        });
+
+        // Ping to measure latency
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'ping',
+                    timestamp: Date.now()
+                }));
+            }
+        }, 3000);
+
+        // Initialize connection
+        connectWebSocket();
+    </script>
+</body>
+</html>
