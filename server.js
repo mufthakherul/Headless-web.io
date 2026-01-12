@@ -21,6 +21,7 @@ const compression = require('compression');
 const cors = require('cors');
 const { ssrfProtectionMiddleware } = require('./security');
 const { rateLimitMiddleware, sessionRateLimitMiddleware } = require('./rateLimit');
+const { isValidURL, isValidSessionID, validateJSONPayload } = require('./validator');
 const logger = require('./logger');
 const { fetchAndRewrite } = require('./proxy');
 const { extractContent, generateReaderHTML } = require('./reader');
@@ -49,6 +50,10 @@ app.use(helmet({
 // Compression middleware for better performance
 app.use(compression());
 
+// Body size limits to prevent abuse
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ limit: '1mb', extended: true }));
+
 // CORS configuration for API access
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
@@ -58,8 +63,8 @@ app.use(cors({
 }));
 
 // Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // Serve static files from web directory for backward compatibility
 app.use(express.static(path.join(__dirname, 'web')));
 // Serve static files from public directory if it exists
@@ -67,6 +72,34 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Apply rate limiting to all routes
 app.use(rateLimitMiddleware);
+
+// Add security and caching headers
+app.use((req, res, next) => {
+  // Prevent caching of API responses
+  if (req.path.startsWith('/api') || req.path.startsWith('/snapshot') || req.path.startsWith('/live')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  } else {
+    // Cache static assets for 1 hour
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  }
+
+  // Add security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  // Add rate limit headers to response
+  if (res.locals.rateLimit) {
+    res.setHeader('X-RateLimit-Limit', res.locals.rateLimit.limit);
+    res.setHeader('X-RateLimit-Remaining', res.locals.rateLimit.remaining);
+    res.setHeader('X-RateLimit-Reset', res.locals.rateLimit.reset);
+  }
+
+  next();
+});
 
 // Request metrics tracking
 const metrics = {
