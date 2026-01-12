@@ -126,10 +126,70 @@ if (USE_REDIS) {
 
 // Session Management
 const sessions = new Map();
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
 
 function generateSessionId() {
   // Using crypto.randomBytes() for cryptographically secure session IDs
   return 'session_' + Date.now() + '_' + crypto.randomBytes(16).toString('hex');
+}
+
+// Session cleanup - Remove stale sessions periodically
+function cleanupStaleSessions() {
+  const now = Date.now();
+  let cleanedCount = 0;
+  
+  for (const [sessionId, session] of sessions.entries()) {
+    const timeSinceLastAccess = now - session.lastAccessed;
+    const timeSinceCreation = now - session.createdAt;
+    
+    // Remove session if inactive for 30 minutes or older than 24 hours
+    if (timeSinceLastAccess > SESSION_TIMEOUT || timeSinceCreation > SESSION_MAX_AGE) {
+      sessions.delete(sessionId);
+      cleanedCount++;
+      logger.session('expired', sessionId, { 
+        reason: timeSinceLastAccess > SESSION_TIMEOUT ? 'timeout' : 'max_age',
+        age: Math.floor(timeSinceCreation / 1000) + 's'
+      });
+    }
+  }
+  
+  if (cleanedCount > 0) {
+    logger.info(`Cleaned up ${cleanedCount} stale sessions`);
+  }
+}
+
+// Run cleanup every 5 minutes
+setInterval(cleanupStaleSessions, 5 * 60 * 1000);
+
+// Response cache for static content
+const responseCache = new Map();
+const CACHE_MAX_SIZE = 100;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCachedResponse(key) {
+  const cached = responseCache.get(key);
+  if (!cached) return null;
+  
+  if (Date.now() - cached.timestamp > CACHE_TTL) {
+    responseCache.delete(key);
+    return null;
+  }
+  
+  return cached.data;
+}
+
+function setCachedResponse(key, data) {
+  // Simple LRU: if cache is full, remove oldest entry
+  if (responseCache.size >= CACHE_MAX_SIZE) {
+    const firstKey = responseCache.keys().next().value;
+    responseCache.delete(firstKey);
+  }
+  
+  responseCache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
 }
 
 // ===== ROUTE HANDLERS =====
@@ -580,6 +640,7 @@ app.get('/health', async (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     activeSessions: sessions.size,
+    cacheSize: responseCache.size,
     features: {
       proxy: true,
       reader: true,
@@ -598,6 +659,76 @@ app.get('/health', async (req, res) => {
   }
 
   res.json(health);
+});
+
+// Session management endpoints
+app.get('/sessions/list', (req, res) => {
+  const sessionsList = Array.from(sessions.entries()).map(([id, data]) => ({
+    id,
+    url: data.url,
+    mode: data.mode,
+    createdAt: new Date(data.createdAt).toISOString(),
+    lastAccessed: new Date(data.lastAccessed).toISOString(),
+    age: Math.floor((Date.now() - data.createdAt) / 1000) + 's',
+    idle: Math.floor((Date.now() - data.lastAccessed) / 1000) + 's'
+  }));
+
+  res.json({
+    success: true,
+    count: sessionsList.length,
+    sessions: sessionsList
+  });
+});
+
+app.delete('/sessions/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  
+  if (!sessions.has(sessionId)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  sessions.delete(sessionId);
+  logger.session('deleted', sessionId);
+  
+  res.json({
+    success: true,
+    message: 'Session deleted'
+  });
+});
+
+app.post('/sessions/cleanup', (req, res) => {
+  const beforeCount = sessions.size;
+  cleanupStaleSessions();
+  const afterCount = sessions.size;
+  
+  res.json({
+    success: true,
+    removed: beforeCount - afterCount,
+    remaining: afterCount
+  });
+});
+
+// Cache management endpoints
+app.get('/cache/stats', (req, res) => {
+  res.json({
+    success: true,
+    size: responseCache.size,
+    maxSize: CACHE_MAX_SIZE,
+    ttl: CACHE_TTL + 'ms'
+  });
+});
+
+app.post('/cache/clear', (req, res) => {
+  const beforeSize = responseCache.size;
+  responseCache.clear();
+  
+  logger.info('Response cache cleared');
+  
+  res.json({
+    success: true,
+    message: 'Cache cleared',
+    itemsRemoved: beforeSize
+  });
 });
 
 // API Documentation endpoint

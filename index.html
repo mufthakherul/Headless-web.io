@@ -515,6 +515,15 @@
             <span id="theme-icon">🌙</span>
         </button>
         <div style="display: flex; gap: 10px;">
+            <button class="stats-btn" onclick="showHistory()">
+                📜 History
+            </button>
+            <button class="stats-btn" onclick="showBookmarks()">
+                ⭐ Bookmarks
+            </button>
+            <button class="stats-btn" onclick="showSettings()">
+                ⚙️ Settings
+            </button>
             <button class="stats-btn" onclick="window.open('/api/docs', '_blank')">
                 📚 API Docs
             </button>
@@ -664,6 +673,66 @@
                 <button class="modal-close" onclick="closeStats()">×</button>
             </div>
             <div id="stats-content">Loading...</div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📜 Browsing History</h2>
+                <button class="modal-close" onclick="closeHistory()">×</button>
+            </div>
+            <div id="history-content">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Bookmarks Modal -->
+    <div class="modal" id="bookmarksModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⭐ Bookmarks</h2>
+                <button class="modal-close" onclick="closeBookmarks()">×</button>
+            </div>
+            <div id="bookmarks-content">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="modal-close" onclick="closeSettings()">×</button>
+            </div>
+            <div id="settings-content">
+                <div style="padding: 20px;">
+                    <h3>User Preferences</h3>
+                    <div style="margin: 20px 0;">
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="checkbox" id="autoSaveHistory" onchange="saveSettings()"> 
+                            <span>Auto-save browsing history</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="checkbox" id="showNotifications" onchange="saveSettings()"> 
+                            <span>Show notifications</span>
+                        </label>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px;">Data Management</h3>
+                    <div style="margin: 20px 0; display: flex; gap: 10px;">
+                        <button class="btn-secondary" onclick="exportData()">📤 Export Data</button>
+                        <button class="btn-secondary" onclick="importData()">📥 Import Data</button>
+                        <button class="btn-secondary" onclick="clearAllData()" style="background: #ef4444;">🗑️ Clear All Data</button>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px;">About</h3>
+                    <p style="color: var(--text-secondary); margin-top: 10px;">
+                        Headless-web Gateway v2.1.0<br>
+                        Advanced web browsing with multiple compatibility modes
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -835,12 +904,368 @@
             }
         });
 
+        // ===== History Management =====
+        function addToHistory(url, mode, sessionId) {
+            if (!getSettings().autoSaveHistory) return;
+            
+            const history = getHistory();
+            history.unshift({
+                url,
+                mode,
+                sessionId,
+                timestamp: new Date().toISOString(),
+                id: Date.now()
+            });
+            
+            // Keep only last 50 items
+            if (history.length > 50) {
+                history.splice(50);
+            }
+            
+            localStorage.setItem('browsingHistory', JSON.stringify(history));
+        }
+
+        function getHistory() {
+            try {
+                return JSON.parse(localStorage.getItem('browsingHistory') || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear all browsing history?')) {
+                localStorage.removeItem('browsingHistory');
+                showHistory();
+            }
+        }
+
+        function showHistory() {
+            document.getElementById('historyModal').style.display = 'flex';
+            const history = getHistory();
+            
+            const content = document.getElementById('history-content');
+            if (history.length === 0) {
+                content.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No browsing history yet</div>';
+                return;
+            }
+            
+            content.innerHTML = `
+                <div style="padding: 20px;">
+                    <button class="btn-secondary" onclick="clearHistory()" style="float: right; background: #ef4444;">Clear History</button>
+                    <div style="clear: both; margin-top: 10px;">
+                        ${history.map(item => `
+                            <div style="padding: 15px; border-bottom: 1px solid var(--border); cursor: pointer;" 
+                                 onclick="setUrl('${item.url}'); selectMode('${item.mode}'); closeHistory();">
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 500; margin-bottom: 5px;">${item.url}</div>
+                                        <div style="font-size: 0.85em; color: var(--text-secondary);">
+                                            Mode: ${item.mode} | ${new Date(item.timestamp).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.85em;" 
+                                            onclick="event.stopPropagation(); addToBookmarks('${item.url}', '${item.mode}');">
+                                        ⭐ Bookmark
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function closeHistory() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
+        // ===== Bookmarks Management =====
+        function getBookmarks() {
+            try {
+                return JSON.parse(localStorage.getItem('bookmarks') || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        function addToBookmarks(url, mode) {
+            const bookmarks = getBookmarks();
+            
+            // Check if already bookmarked
+            if (bookmarks.some(b => b.url === url)) {
+                alert('This URL is already bookmarked!');
+                return;
+            }
+            
+            const name = prompt('Enter a name for this bookmark:', url.substring(0, 50));
+            if (!name) return;
+            
+            bookmarks.push({
+                url,
+                mode: mode || selectedMode,
+                name,
+                timestamp: new Date().toISOString(),
+                id: Date.now()
+            });
+            
+            localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+            alert('Bookmark added!');
+        }
+
+        function removeBookmark(id) {
+            if (!confirm('Remove this bookmark?')) return;
+            
+            const bookmarks = getBookmarks().filter(b => b.id !== id);
+            localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+            showBookmarks();
+        }
+
+        function showBookmarks() {
+            document.getElementById('bookmarksModal').style.display = 'flex';
+            const bookmarks = getBookmarks();
+            
+            const content = document.getElementById('bookmarks-content');
+            if (bookmarks.length === 0) {
+                content.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No bookmarks yet. Click the ⭐ button in history to add bookmarks.</div>';
+                return;
+            }
+            
+            content.innerHTML = `
+                <div style="padding: 20px;">
+                    ${bookmarks.map(item => `
+                        <div style="padding: 15px; border-bottom: 1px solid var(--border);">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div style="flex: 1; cursor: pointer;" 
+                                     onclick="setUrl('${item.url}'); selectMode('${item.mode}'); closeBookmarks();">
+                                    <div style="font-weight: 500; margin-bottom: 5px;">⭐ ${item.name}</div>
+                                    <div style="font-size: 0.85em; color: var(--text-secondary);">
+                                        ${item.url}<br>
+                                        Mode: ${item.mode} | Added: ${new Date(item.timestamp).toLocaleString()}
+                                    </div>
+                                </div>
+                                <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.85em; background: #ef4444;" 
+                                        onclick="removeBookmark(${item.id});">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function closeBookmarks() {
+            document.getElementById('bookmarksModal').style.display = 'none';
+        }
+
+        // ===== Settings Management =====
+        function getSettings() {
+            try {
+                return JSON.parse(localStorage.getItem('settings') || '{"autoSaveHistory": true, "showNotifications": true}');
+            } catch {
+                return {autoSaveHistory: true, showNotifications: true};
+            }
+        }
+
+        function saveSettings() {
+            const settings = {
+                autoSaveHistory: document.getElementById('autoSaveHistory').checked,
+                showNotifications: document.getElementById('showNotifications').checked
+            };
+            localStorage.setItem('settings', JSON.stringify(settings));
+        }
+
+        function showSettings() {
+            document.getElementById('settingsModal').style.display = 'flex';
+            const settings = getSettings();
+            document.getElementById('autoSaveHistory').checked = settings.autoSaveHistory;
+            document.getElementById('showNotifications').checked = settings.showNotifications;
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function exportData() {
+            const data = {
+                history: getHistory(),
+                bookmarks: getBookmarks(),
+                settings: getSettings(),
+                theme: localStorage.getItem('theme'),
+                exportDate: new Date().toISOString(),
+                version: '2.1.0'
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `headless-web-data-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            alert('Data exported successfully!');
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        if (!confirm('This will replace your current data. Continue?')) {
+                            return;
+                        }
+                        
+                        if (data.history) localStorage.setItem('browsingHistory', JSON.stringify(data.history));
+                        if (data.bookmarks) localStorage.setItem('bookmarks', JSON.stringify(data.bookmarks));
+                        if (data.settings) localStorage.setItem('settings', JSON.stringify(data.settings));
+                        if (data.theme) {
+                            localStorage.setItem('theme', data.theme);
+                            document.documentElement.setAttribute('data-theme', data.theme);
+                            document.getElementById('theme-icon').textContent = data.theme === 'dark' ? '☀️' : '🌙';
+                        }
+                        
+                        alert('Data imported successfully! Reloading page...');
+                        location.reload();
+                    } catch (error) {
+                        alert('Error importing data: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        function clearAllData() {
+            if (!confirm('This will delete ALL your data including history, bookmarks, and settings. Are you absolutely sure?')) {
+                return;
+            }
+            
+            if (!confirm('Last chance! This action cannot be undone.')) {
+                return;
+            }
+            
+            localStorage.removeItem('browsingHistory');
+            localStorage.removeItem('bookmarks');
+            localStorage.removeItem('settings');
+            
+            alert('All data cleared!');
+            closeSettings();
+        }
+
+        // Update form submission to save to history
+        const originalFormHandler = document.getElementById('browseForm').onsubmit;
+        document.getElementById('browseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const url = document.getElementById('url').value;
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch(`/go?url=${encodeURIComponent(url)}&mode=${selectedMode}`);
+                const sessionData = await response.json();
+
+                if (!sessionData.success) {
+                    throw new Error(sessionData.error || 'Failed to create session');
+                }
+
+                const sid = sessionData.sessionId;
+                
+                // Add to history
+                addToHistory(url, selectedMode, sid);
+
+                // Handle different modes
+                let finalUrl;
+                let actions = [];
+
+                if (selectedMode === 'fast') {
+                    finalUrl = `/proxy?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    actions = [
+                        { label: '🔗 Open in New Tab', url: finalUrl }
+                    ];
+                } else if (selectedMode === 'reader') {
+                    finalUrl = `/reader?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    actions = [
+                        { label: '📖 Open Reader', url: finalUrl },
+                        { label: '📄 Download PDF', url: `/pdf/generate?url=${encodeURIComponent(url)}` }
+                    ];
+                } else if (selectedMode === 'text') {
+                    finalUrl = `/text?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    actions = [
+                        { label: '📝 Open Text-only', url: finalUrl }
+                    ];
+                } else if (selectedMode === 'live') {
+                    // Start live session
+                    const liveResponse = await fetch('/live/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: sid, url })
+                    });
+                    const liveData = await liveResponse.json();
+                    
+                    finalUrl = `/live?sid=${sid}`;
+                    actions = [
+                        { label: '🎮 Open Live Mode', url: finalUrl }
+                    ];
+                } else if (selectedMode === 'snapshot') {
+                    // Create snapshot
+                    const snapshotResponse = await fetch('/snapshot/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+                    const snapshotData = await snapshotResponse.json();
+                    
+                    finalUrl = `/snapshot/view?sid=${snapshotData.snapshotId}`;
+                    actions = [
+                        { label: '📸 View Snapshot', url: finalUrl },
+                        { label: '🖼️ View Screenshot', url: `/snapshot/screenshot?sid=${snapshotData.snapshotId}` }
+                    ];
+                }
+
+                loading.style.display = 'none';
+                result.style.display = 'block';
+
+                document.getElementById('result-content').innerHTML = `
+                    <p><strong>Session ID:</strong> ${sid}</p>
+                    <p><strong>Mode:</strong> ${selectedMode}</p>
+                    <p><strong>URL:</strong> ${url}</p>
+                `;
+
+                const actionButtons = document.getElementById('action-buttons');
+                actionButtons.innerHTML = '';
+                
+                actions.forEach(action => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-secondary';
+                    btn.textContent = action.label;
+                    btn.onclick = () => window.open(action.url, '_blank');
+                    actionButtons.appendChild(btn);
+                });
+
+            } catch (error) {
+
         // Close modal on outside click
         window.onclick = (event) => {
-            const modal = document.getElementById('statsModal');
-            if (event.target === modal) {
-                closeStats();
-            }
+            if (event.target.id === 'statsModal') closeStats();
+            if (event.target.id === 'historyModal') closeHistory();
+            if (event.target.id === 'bookmarksModal') closeBookmarks();
+            if (event.target.id === 'settingsModal') closeSettings();
         };
     </script>
 </body>
