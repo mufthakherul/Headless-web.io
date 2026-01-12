@@ -817,6 +817,7 @@
     <script>
         // Constants
         const AVATAR_EMOJIS = ['👤', '😊', '🚀', '⭐', '🎯', '💡', '🌟', '🔥', '🎨', '🎭', '🎪', '🎬', '🎮', '🎲', '🎼', '🎵', '🎸', '🎹', '🎺', '🎻', '🎤', '🎧', '📱', '💻', '⌨️', '🖥️', '🖱️', '🖨️', '📷', '📸', '📹', '🎥', '📽️', '🔬', '🔭', '📡', '🛸', '🚁', '🛰️', '💫', '✨', '⚡', '💧', '🌊', '🌈', '☀️', '🌙', '🦄', '🐉', '🦋', '🐝'];
+        const BROWSE_MULTIPLIER = 1.5; // Multiplier for estimating browse count from chat count
 
         // Theme toggle
         function toggleTheme() {
@@ -931,7 +932,7 @@
                     document.getElementById('stat-messages').textContent = stats.chat_count || 0;
                     
                     // Estimate total browses (placeholder until we track this)
-                    document.getElementById('total-browses').textContent = Math.floor((stats.chat_count || 0) * 1.5);
+                    document.getElementById('total-browses').textContent = Math.floor((stats.chat_count || 0) * BROWSE_MULTIPLIER);
                 } else {
                     // Set defaults if stats not available
                     document.getElementById('total-ai-chats').textContent = '0';

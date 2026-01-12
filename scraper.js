@@ -173,10 +173,12 @@ class ScraperManager {
             const validQualities = ['highest', 'high', 'medium', 'low'];
             
             if (!validFormats.includes(format)) {
+                logger.warn('Invalid format parameter sanitized', { provided: format, default: 'video' });
                 format = 'video';
             }
             
             if (!validQualities.includes(quality)) {
+                logger.warn('Invalid quality parameter sanitized', { provided: quality, default: 'highest' });
                 quality = 'highest';
             }
 
