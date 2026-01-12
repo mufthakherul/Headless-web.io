@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Headless-web Gateway - Advanced Web Browsing</title>
+    <meta name="description" content="Browse websites through different compatibility modes with advanced features">
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg-main: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #1f2937;
+            --bg-secondary: #111827;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --border: #374151;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            transition: background 0.3s;
+        }
+
+        .nav {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .theme-toggle {
+            background: var(--bg-main);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 20px;
+            box-shadow: 0 4px 6px var(--shadow);
+            transition: transform 0.2s;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.05);
+        }
+
+        .stats-btn {
+            background: var(--bg-main);
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            box-shadow: 0 4px 6px var(--shadow);
+            transition: all 0.2s;
+        }
+
+        .stats-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px var(--shadow);
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            background: var(--bg-main);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 1.1em;
+        }
+
+        .feature-badges {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            backdrop-filter: blur(10px);
+        }
+
+        .content {
+            padding: 40px;
+            color: var(--text-primary);
+            background: var(--bg-main);
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideIn 0.5s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid var(--success);
+            color: var(--success);
+        }
+
+        .alert-icon {
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1.05em;
+        }
+
+        .url-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-primary {
+            padding: 15px 30px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .quick-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .quick-link {
+            padding: 8px 15px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .quick-link:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .mode-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px var(--shadow);
+            border-color: var(--primary);
+        }
+
+        .mode-card.selected {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+
+        .mode-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .mode-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .mode-description {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .mode-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .badge-new {
+            background: var(--success);
+            color: white;
+        }
+
+        .badge-beta {
+            background: var(--warning);
+            color: white;
+        }
+
+        .badge-planned {
+            background: var(--text-secondary);
+            color: white;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .feature-icon {
+            font-size: 1.5em;
+        }
+
+        .feature-text {
+            font-size: 0.9em;
+            color: var(--text-primary);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            display: none;
+            animation: slideIn 0.5s;
+        }
+
+        .result h3 {
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+
+        .result-content {
+            background: var(--bg-main);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            color: var(--text-primary);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: var(--bg-main);
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .mode-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .url-input-group {
+                flex-direction: column;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+            <span id="theme-icon">🌙</span>
+        </button>
+        <div style="display: flex; gap: 10px;">
+            <button class="stats-btn" onclick="window.open('/api/docs', '_blank')">
+                📚 API Docs
+            </button>
+            <button class="stats-btn" onclick="showStats()">
+                📊 Stats
+            </button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <h1>🌐 Headless-web Gateway</h1>
+                <p>Advanced web browsing with multiple compatibility modes</p>
+                <div class="feature-badges">
+                    <span class="badge">🔒 Secure</span>
+                    <span class="badge">⚡ Fast</span>
+                    <span class="badge">🎮 Interactive</span>
+                    <span class="badge">📸 Snapshot</span>
+                    <span class="badge">📄 PDF Export</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="alert alert-success">
+                <span class="alert-icon">✅</span>
+                <div>
+                    <strong>All Advanced Features Active!</strong>
+                    <p>Proxy, Reader, Text-only, Live Mode, Snapshot, and PDF generation are now available.</p>
+                </div>
+            </div>
+
+            <form id="browseForm">
+                <div class="form-group">
+                    <label for="url">🔗 Enter Website URL</label>
+                    <div class="quick-links">
+                        <span class="quick-link" onclick="setUrl('https://example.com')">Example.com</span>
+                        <span class="quick-link" onclick="setUrl('https://en.wikipedia.org')">Wikipedia</span>
+                        <span class="quick-link" onclick="setUrl('https://news.ycombinator.com')">Hacker News</span>
+                        <span class="quick-link" onclick="setUrl('https://github.com')">GitHub</span>
+                    </div>
+                    <div class="url-input-group">
+                        <input type="text" id="url" name="url" placeholder="https://example.com" required>
+                        <button type="submit" class="btn-primary">🚀 Browse</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>🎯 Select Browsing Mode</label>
+                    <div class="mode-grid">
+                        <div class="mode-card selected" data-mode="fast" onclick="selectMode('fast')">
+                            <span class="mode-badge badge-new">READY</span>
+                            <div class="mode-icon">⚡</div>
+                            <div class="mode-title">Fast (Proxy)</div>
+                            <div class="mode-description">Server-side fetch with HTML/CSS rewriting. Best for static sites.</div>
+                        </div>
+
+                        <div class="mode-card" data-mode="reader" onclick="selectMode('reader')">
+                            <span class="mode-badge badge-new">READY</span>
+                            <div class="mode-icon">📖</div>
+                            <div class="mode-title">Reader Mode</div>
+                            <div class="mode-description">Extract main article content with clean formatting. Includes PDF export.</div>
+                        </div>
+
+                        <div class="mode-card" data-mode="text" onclick="selectMode('text')">
+                            <span class="mode-badge badge-new">READY</span>
+                            <div class="mode-icon">📝</div>
+                            <div class="mode-title">Text-only</div>
+                            <div class="mode-description">Minimal bandwidth mode with text and links only.</div>
+                        </div>
+
+                        <div class="mode-card" data-mode="live" onclick="selectMode('live')">
+                            <span class="mode-badge badge-new">NEW</span>
+                            <div class="mode-icon">🎮</div>
+                            <div class="mode-title">Live Mode</div>
+                            <div class="mode-description">Interactive browser session with real-time streaming via WebSocket.</div>
+                        </div>
+
+                        <div class="mode-card" data-mode="snapshot" onclick="selectMode('snapshot')">
+                            <span class="mode-badge badge-new">NEW</span>
+                            <div class="mode-icon">📸</div>
+                            <div class="mode-title">Snapshot</div>
+                            <div class="mode-description">Capture and save pages for offline viewing with full resources.</div>
+                        </div>
+
+                        <div class="mode-card" data-mode="desktop" onclick="selectMode('desktop')">
+                            <span class="mode-badge badge-planned">PLANNED</span>
+                            <div class="mode-icon">🖥️</div>
+                            <div class="mode-title">Full Desktop</div>
+                            <div class="mode-description">Complete desktop browser via VNC/noVNC. Requires setup.</div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="features-grid">
+                <div class="feature-item">
+                    <span class="feature-icon">🔒</span>
+                    <span class="feature-text">SSRF Protected</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">⚡</span>
+                    <span class="feature-text">Rate Limited</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🍪</span>
+                    <span class="feature-text">Cookie Management</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <span class="feature-text">Real-time Stats</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🔌</span>
+                    <span class="feature-text">WebSocket Support</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📄</span>
+                    <span class="feature-text">PDF Export</span>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing your request...</p>
+            </div>
+
+            <div class="result" id="result">
+                <h3>✅ Session Created</h3>
+                <div class="result-content" id="result-content"></div>
+                <div class="action-buttons" id="action-buttons"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Headless-web Gateway v2.0 | <a href="https://github.com/mufthakherul/Headless-web.io" target="_blank">View on GitHub</a></p>
+            <p>Features: Playwright, WebSocket, Redis, Cookie Management, PDF Generation</p>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div class="modal" id="statsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Server Statistics</h2>
+                <button class="modal-close" onclick="closeStats()">×</button>
+            </div>
+            <div id="stats-content">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        let selectedMode = 'fast';
+
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        document.getElementById('theme-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+        function selectMode(mode) {
+            selectedMode = mode;
+            document.querySelectorAll('.mode-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelector(`[data-mode="${mode}"]`).classList.add('selected');
+        }
+
+        function setUrl(url) {
+            document.getElementById('url').value = url;
+        }
+
+        async function showStats() {
+            document.getElementById('statsModal').style.display = 'flex';
+            
+            try {
+                const response = await fetch('/stats');
+                const stats = await response.json();
+                
+                document.getElementById('stats-content').innerHTML = `
+                    <div style="font-family: monospace; font-size: 0.9em;">
+                        <h3>Server</h3>
+                        <p>Uptime: ${Math.floor(stats.server.uptime / 60)} minutes</p>
+                        <p>Active Sessions: ${stats.server.activeSessions}</p>
+                        <p>Memory: ${Math.round(stats.server.memory.heapUsed / 1024 / 1024)} MB</p>
+                        
+                        <h3 style="margin-top: 20px;">Live Mode</h3>
+                        <p>Active Sessions: ${stats.liveMode.activeSessions}</p>
+                        <p>Browser Active: ${stats.liveMode.browserActive ? 'Yes' : 'No'}</p>
+                        
+                        <h3 style="margin-top: 20px;">Snapshots</h3>
+                        <p>Total Snapshots: ${stats.snapshot.totalSnapshots}</p>
+                        
+                        <h3 style="margin-top: 20px;">WebSocket</h3>
+                        <p>Connected Clients: ${stats.websocket.connectedClients}</p>
+                        
+                        ${stats.redis ? `
+                            <h3 style="margin-top: 20px;">Redis</h3>
+                            <p>Connected: ${stats.redis.connected}</p>
+                            <p>Sessions: ${stats.redis.sessions || 0}</p>
+                        ` : ''}
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('stats-content').innerHTML = `
+                    <div class="alert-error">Failed to load stats: ${error.message}</div>
+                `;
+            }
+        }
+
+        function closeStats() {
+            document.getElementById('statsModal').style.display = 'none';
+        }
+
+        document.getElementById('browseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('url').value;
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            try {
+                // Create session
+                const sessionResponse = await fetch(`/go?url=${encodeURIComponent(url)}&mode=${selectedMode}`);
+                const sessionData = await sessionResponse.json();
+
+                if (!sessionData.success) {
+                    throw new Error(sessionData.error || 'Failed to create session');
+                }
+
+                const sid = sessionData.sessionId;
+
+                // Handle different modes
+                let finalUrl;
+                let actions = [];
+
+                if (selectedMode === 'fast') {
+                    finalUrl = `/proxy?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    actions = [
+                        { label: '🔗 Open in New Tab', url: finalUrl }
+                    ];
+                } else if (selectedMode === 'reader') {
+                    finalUrl = `/reader?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    actions = [
+                        { label: '📖 Open Reader', url: finalUrl },
+                        { label: '📄 Download PDF', url: `/pdf/generate?url=${encodeURIComponent(url)}` }
+                    ];
+                } else if (selectedMode === 'text') {
+                    finalUrl = `/text?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    actions = [
+                        { label: '📝 Open Text-only', url: finalUrl }
+                    ];
+                } else if (selectedMode === 'live') {
+                    // Start live session
+                    const liveResponse = await fetch('/live/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: sid, url })
+                    });
+                    const liveData = await liveResponse.json();
+                    
+                    finalUrl = `/live?sid=${sid}`;
+                    actions = [
+                        { label: '🎮 Open Live Mode', url: finalUrl }
+                    ];
+                } else if (selectedMode === 'snapshot') {
+                    // Create snapshot
+                    const snapshotResponse = await fetch('/snapshot/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+                    const snapshotData = await snapshotResponse.json();
+                    
+                    finalUrl = `/snapshot/view?sid=${snapshotData.snapshotId}`;
+                    actions = [
+                        { label: '📸 View Snapshot', url: finalUrl },
+                        { label: '🖼️ View Screenshot', url: `/snapshot/screenshot?sid=${snapshotData.snapshotId}` }
+                    ];
+                }
+
+                loading.style.display = 'none';
+                result.style.display = 'block';
+
+                document.getElementById('result-content').innerHTML = `
+                    <p><strong>Session ID:</strong> ${sid}</p>
+                    <p><strong>Mode:</strong> ${selectedMode}</p>
+                    <p><strong>URL:</strong> ${url}</p>
+                `;
+
+                const actionButtons = document.getElementById('action-buttons');
+                actionButtons.innerHTML = '';
+                
+                actions.forEach(action => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-secondary';
+                    btn.textContent = action.label;
+                    btn.onclick = () => window.open(action.url, '_blank');
+                    actionButtons.appendChild(btn);
+                });
+
+            } catch (error) {
+                loading.style.display = 'none';
+                alert('Error: ' + error.message);
+            }
+        });
+
+        // Close modal on outside click
+        window.onclick = (event) => {
+            const modal = document.getElementById('statsModal');
+            if (event.target === modal) {
+                closeStats();
+            }
+        };
+    </script>
+</body>
+</html>
