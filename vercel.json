@@ -3,7 +3,11 @@
   "builds": [
     {
       "src": "server.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 30,
+        "memory": 1024
+      }
     }
   ],
   "routes": [
@@ -14,6 +18,14 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "USE_REDIS": "false"
+    "USE_REDIS": "false",
+    "DISABLE_PLAYWRIGHT": "true",
+    "DISABLE_WEBSOCKET": "true"
+  },
+  "functions": {
+    "server.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
   }
 }

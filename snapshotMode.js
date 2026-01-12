@@ -30,12 +30,16 @@ class SnapshotManager {
   async initialize() {
     if (!this.browser) {
       try {
+        const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
         this.browser = await chromium.launch({
           headless: true,
+          ...(executablePath ? { executablePath } : {}),
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage'
+            '--disable-dev-shm-usage',
+            '--single-process',
+            '--no-zygote'
           ]
         });
         logger.info('Snapshot browser launched');
@@ -53,7 +57,7 @@ class SnapshotManager {
 
   async createSnapshot(url, options = {}) {
     const snapshotId = this.generateSnapshotId();
-    
+
     try {
       await this.initialize();
 
@@ -66,11 +70,11 @@ class SnapshotManager {
 
       // Start HAR recording
       await context.route('**/*', route => route.continue());
-      
+
       // Navigate to page
-      await page.goto(url, { 
+      await page.goto(url, {
         waitUntil: 'networkidle',
-        timeout: config.REQUEST_TIMEOUT 
+        timeout: config.REQUEST_TIMEOUT
       });
 
       // Wait for additional time to ensure everything loads
@@ -79,9 +83,9 @@ class SnapshotManager {
       // Capture page data
       const title = await page.title();
       const content = await page.content();
-      const screenshot = await page.screenshot({ 
+      const screenshot = await page.screenshot({
         type: 'png',
-        fullPage: options.fullPage || false 
+        fullPage: options.fullPage || false
       });
 
       // Get all resources (HAR-like data)

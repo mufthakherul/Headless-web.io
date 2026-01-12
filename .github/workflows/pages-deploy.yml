@@ -1,5 +1,9 @@
 name: Deploy to GitHub Pages
 
+# NOTE: GitHub Pages can only host STATIC files (HTML, CSS, JS)
+# It CANNOT run Node.js servers or backend APIs
+# For full functionality, deploy to Vercel, Railway, or use Docker
+
 on:
   push:
     branches:
@@ -22,22 +26,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Create build directory
+      - name: Create static build directory
         run: |
           mkdir -p build
-          cp -r web/* build/
-          cp package*.json build/
-          cp server.js build/
-          cp README.md build/
+          # Copy only frontend files for static hosting
+          cp -r public/* build/ 2>/dev/null || cp -r web/* build/
+          cp README.md build/ 2>/dev/null || true
+          echo "⚠️ Note: This is a static deployment. Backend APIs are not available." > build/DEPLOYMENT_INFO.txt
+          echo "For full functionality, deploy to Vercel or use Docker." >> build/DEPLOYMENT_INFO.txt
+          
+      - name: Create .nojekyll
+        run: touch build/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
