@@ -523,6 +523,9 @@
 </head>
 
 <body>
+    <!-- Toast notifications -->
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+
     <nav class="nav">
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
             <span id="theme-icon">🌙</span>
@@ -996,9 +999,56 @@
 
             } catch (error) {
                 loading.style.display = 'none';
-                alert('Error: ' + error.message);
+                Toast.error('Error: ' + error.message);
             }
         });
+
+        // Toast notification system
+        const Toast = {
+            show(message, type = 'info', duration = 4000) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.textContent = message;
+
+                // Inline styles for toast
+                Object.assign(toast.style, {
+                    background: type === 'success' ? 'rgba(16, 185, 129, 0.1)' :
+                        type === 'error' ? 'rgba(239, 68, 68, 0.1)' :
+                            type === 'warning' ? 'rgba(245, 158, 11, 0.1)' :
+                                'rgba(59, 130, 246, 0.1)',
+                    border: `1px solid ${type === 'success' ? '#10b981' :
+                        type === 'error' ? '#ef4444' :
+                            type === 'warning' ? '#f59e0b' :
+                                '#3b82f6'}`,
+                    color: type === 'success' ? '#86efac' :
+                        type === 'error' ? '#fca5a5' :
+                            type === 'warning' ? '#fcd34d' :
+                                '#93c5fd',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    marginBottom: '10px',
+                    animation: 'slideInRight 0.3s ease-out'
+                });
+
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            },
+            success(msg) { this.show(msg, 'success'); },
+            error(msg) { this.show(msg, 'error', 5000); },
+            warning(msg) { this.show(msg, 'warning'); },
+            info(msg) { this.show(msg, 'info'); }
+        };
+
+        // Update error handling to use Toast
+        const originalAlert = window.alert;
+        window.alert = function (msg) {
+            Toast.error(msg);
+        };
 
         // Close modal on outside click
         window.onclick = (event) => {
@@ -1011,6 +1061,7 @@
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             HistoryManager.renderQuickAccess();
+            Toast.info('Welcome to Headless-web! 🌐');
         });
     </script>
 </body>

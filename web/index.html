@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -113,13 +114,18 @@
             right: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
             animation: rotate 20s linear infinite;
         }
 
         @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .header-content {
@@ -130,7 +136,7 @@
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .header p {
@@ -175,6 +181,7 @@
                 opacity: 0;
                 transform: translateY(-20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -387,8 +394,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .result {
@@ -509,19 +521,18 @@
         }
     </style>
 </head>
+
 <body>
+    <!-- Toast notifications -->
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+
     <nav class="nav">
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
             <span id="theme-icon">🌙</span>
         </button>
-        <div style="display: flex; gap: 10px;">
-            <button class="stats-btn" onclick="window.open('/api/docs', '_blank')">
-                📚 API Docs
-            </button>
-            <button class="stats-btn" onclick="showStats()">
-                📊 Stats
-            </button>
-        </div>
+        <button class="stats-btn" onclick="showStats()">
+            📊 Stats
+        </button>
     </nav>
 
     <div class="container">
@@ -561,6 +572,7 @@
                         <input type="text" id="url" name="url" placeholder="https://example.com" required>
                         <button type="submit" class="btn-primary">🚀 Browse</button>
                     </div>
+                    <div id="quick-access"></div>
                 </div>
 
                 <div class="form-group">
@@ -570,14 +582,16 @@
                             <span class="mode-badge badge-new">READY</span>
                             <div class="mode-icon">⚡</div>
                             <div class="mode-title">Fast (Proxy)</div>
-                            <div class="mode-description">Server-side fetch with HTML/CSS rewriting. Best for static sites.</div>
+                            <div class="mode-description">Server-side fetch with HTML/CSS rewriting. Best for static
+                                sites.</div>
                         </div>
 
                         <div class="mode-card" data-mode="reader" onclick="selectMode('reader')">
                             <span class="mode-badge badge-new">READY</span>
                             <div class="mode-icon">📖</div>
                             <div class="mode-title">Reader Mode</div>
-                            <div class="mode-description">Extract main article content with clean formatting. Includes PDF export.</div>
+                            <div class="mode-description">Extract main article content with clean formatting. Includes
+                                PDF export.</div>
                         </div>
 
                         <div class="mode-card" data-mode="text" onclick="selectMode('text')">
@@ -591,14 +605,16 @@
                             <span class="mode-badge badge-new">NEW</span>
                             <div class="mode-icon">🎮</div>
                             <div class="mode-title">Live Mode</div>
-                            <div class="mode-description">Interactive browser session with real-time streaming via WebSocket.</div>
+                            <div class="mode-description">Interactive browser session with real-time streaming via
+                                WebSocket.</div>
                         </div>
 
                         <div class="mode-card" data-mode="snapshot" onclick="selectMode('snapshot')">
                             <span class="mode-badge badge-new">NEW</span>
                             <div class="mode-icon">📸</div>
                             <div class="mode-title">Snapshot</div>
-                            <div class="mode-description">Capture and save pages for offline viewing with full resources.</div>
+                            <div class="mode-description">Capture and save pages for offline viewing with full
+                                resources.</div>
                         </div>
 
                         <div class="mode-card" data-mode="desktop" onclick="selectMode('desktop')">
@@ -651,7 +667,8 @@
         </div>
 
         <div class="footer">
-            <p>Headless-web Gateway v2.0 | <a href="https://github.com/mufthakherul/Headless-web.io" target="_blank">View on GitHub</a></p>
+            <p>Headless-web Gateway v2.0 | <a href="https://github.com/mufthakherul/Headless-web.io"
+                    target="_blank">View on GitHub</a></p>
             <p>Features: Playwright, WebSocket, Redis, Cookie Management, PDF Generation</p>
         </div>
     </div>
@@ -699,27 +716,45 @@
 
         async function showStats() {
             document.getElementById('statsModal').style.display = 'flex';
-            
+
             try {
                 const response = await fetch('/stats');
+
+                // Check if response is ok and JSON
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Backend API not available. This app requires a Node.js server. Deploy to Vercel for full functionality.');
+                }
+
                 const stats = await response.json();
-                
+
                 document.getElementById('stats-content').innerHTML = `
                     <div style="font-family: monospace; font-size: 0.9em;">
                         <h3>Server</h3>
+                        <p>Environment: ${stats.server.environment || 'Unknown'}</p>
                         <p>Uptime: ${Math.floor(stats.server.uptime / 60)} minutes</p>
                         <p>Active Sessions: ${stats.server.activeSessions}</p>
                         <p>Memory: ${Math.round(stats.server.memory.heapUsed / 1024 / 1024)} MB</p>
                         
                         <h3 style="margin-top: 20px;">Live Mode</h3>
-                        <p>Active Sessions: ${stats.liveMode.activeSessions}</p>
-                        <p>Browser Active: ${stats.liveMode.browserActive ? 'Yes' : 'No'}</p>
+                        ${stats.liveMode.enabled !== false ? `
+                            <p>Active Sessions: ${stats.liveMode.activeSessions}</p>
+                            <p>Browser Active: ${stats.liveMode.browserActive ? 'Yes' : 'No'}</p>
+                        ` : '<p style="color: #f59e0b;">⚠️ Disabled in serverless mode</p>'}
                         
                         <h3 style="margin-top: 20px;">Snapshots</h3>
-                        <p>Total Snapshots: ${stats.snapshot.totalSnapshots}</p>
+                        ${stats.snapshot.enabled !== false ? `
+                            <p>Total Snapshots: ${stats.snapshot.totalSnapshots}</p>
+                        ` : '<p style="color: #f59e0b;">⚠️ Disabled in serverless mode</p>'}
                         
                         <h3 style="margin-top: 20px;">WebSocket</h3>
-                        <p>Connected Clients: ${stats.websocket.connectedClients}</p>
+                        ${stats.websocket.enabled !== false ? `
+                            <p>Connected Clients: ${stats.websocket.connectedClients}</p>
+                        ` : '<p style="color: #f59e0b;">⚠️ Disabled in serverless mode</p>'}
                         
                         ${stats.redis ? `
                             <h3 style="margin-top: 20px;">Redis</h3>
@@ -730,7 +765,13 @@
                 `;
             } catch (error) {
                 document.getElementById('stats-content').innerHTML = `
-                    <div class="alert-error">Failed to load stats: ${error.message}</div>
+                    <div class="alert-error">
+                        <strong>Failed to load stats</strong><br><br>
+                        ${error.message}<br><br>
+                        ${error.message.includes('Backend API') ?
+                        '<strong>Deploy to Vercel:</strong><br>• Connect your GitHub repo to Vercel<br>• Deploy from main branch<br>• Full backend API will be available' :
+                        ''}
+                    </div>
                 `;
             }
         }
@@ -739,13 +780,117 @@
             document.getElementById('statsModal').style.display = 'none';
         }
 
+        // Session history management
+        const HistoryManager = {
+            KEY: 'headless_history',
+            MAX_ITEMS: 10,
+
+            add(url, mode) {
+                const history = this.get();
+                history.unshift({
+                    url,
+                    mode,
+                    timestamp: new Date().toLocaleString()
+                });
+                localStorage.setItem(this.KEY, JSON.stringify(history.slice(0, this.MAX_ITEMS)));
+            },
+
+            get() {
+                const data = localStorage.getItem(this.KEY);
+                return data ? JSON.parse(data) : [];
+            },
+
+            clear() {
+                localStorage.removeItem(this.KEY);
+            },
+
+            renderQuickAccess() {
+                const history = this.get();
+                const container = document.getElementById('quick-access');
+
+                if (history.length === 0) {
+                    container.innerHTML = '<p style="color: #999; font-size: 13px;">No recent sessions</p>';
+                    return;
+                }
+
+                container.innerHTML = history.slice(0, 5).map(item => `
+                    <button class="quick-btn" title="${item.url}" onclick="
+                        document.getElementById('url').value = '${item.url.replace(/'/g, "\\'")}';
+                        document.getElementById('mode').value = '${item.mode}';
+                    ">
+                        <span class="mode-badge">${item.mode[0].toUpperCase()}</span>
+                        <div class="quick-text">
+                            <div class="quick-url">${new URL(item.url).hostname}</div>
+                            <div class="quick-time">${item.timestamp.split(' ')[0]}</div>
+                        </div>
+                    </button>
+                `).join('');
+            }
+        };
+
+        // Add CSS for quick access
+        const style = document.createElement('style');
+        style.textContent = `
+            #quick-access {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid var(--border);
+            }
+
+            .quick-btn {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border);
+                padding: 8px 12px;
+                border-radius: 6px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12px;
+                color: var(--text-primary);
+                transition: all 0.2s;
+            }
+
+            .quick-btn:hover {
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
+            }
+
+            .mode-badge {
+                background: var(--primary);
+                color: white;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-weight: bold;
+                font-size: 11px;
+            }
+
+            .quick-text {
+                text-align: left;
+            }
+
+            .quick-url {
+                font-weight: 500;
+            }
+
+            .quick-time {
+                opacity: 0.7;
+                font-size: 11px;
+            }
+        `;
+        document.head.appendChild(style);
+
         document.getElementById('browseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const url = document.getElementById('url').value;
             const loading = document.getElementById('loading');
             const result = document.getElementById('result');
-            
+
             loading.style.display = 'block';
             result.style.display = 'none';
 
@@ -760,25 +905,32 @@
 
                 const sid = sessionData.sessionId;
 
+                // Track in history
+                HistoryManager.add(url, selectedMode);
+                HistoryManager.renderQuickAccess();
+
                 // Handle different modes
                 let finalUrl;
                 let actions = [];
 
                 if (selectedMode === 'fast') {
                     finalUrl = `/proxy?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '🔗 Open in New Tab', url: finalUrl }
+                        { label: '🔗 Open Again', url: finalUrl }
                     ];
                 } else if (selectedMode === 'reader') {
                     finalUrl = `/reader?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '📖 Open Reader', url: finalUrl },
+                        { label: '📖 Open Reader Again', url: finalUrl },
                         { label: '📄 Download PDF', url: `/pdf/generate?url=${encodeURIComponent(url)}` }
                     ];
                 } else if (selectedMode === 'text') {
                     finalUrl = `/text?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '📝 Open Text-only', url: finalUrl }
+                        { label: '📝 Open Text-only Again', url: finalUrl }
                     ];
                 } else if (selectedMode === 'live') {
                     // Start live session
@@ -788,10 +940,15 @@
                         body: JSON.stringify({ sessionId: sid, url })
                     });
                     const liveData = await liveResponse.json();
-                    
+
+                    if (!liveData.success) {
+                        throw new Error(liveData.message || 'Failed to start live session');
+                    }
+
                     finalUrl = `/live?sid=${sid}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '🎮 Open Live Mode', url: finalUrl }
+                        { label: '🎮 Open Live Mode Again', url: finalUrl }
                     ];
                 } else if (selectedMode === 'snapshot') {
                     // Create snapshot
@@ -800,11 +957,22 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ url })
                     });
+
+                    if (!snapshotResponse.ok) {
+                        const errorData = await snapshotResponse.json();
+                        throw new Error(errorData.message || 'Failed to create snapshot');
+                    }
+
                     const snapshotData = await snapshotResponse.json();
-                    
+
+                    if (!snapshotData.success || !snapshotData.snapshotId) {
+                        throw new Error(snapshotData.message || 'Snapshot creation failed');
+                    }
+
                     finalUrl = `/snapshot/view?sid=${snapshotData.snapshotId}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '📸 View Snapshot', url: finalUrl },
+                        { label: '📸 View Snapshot Again', url: finalUrl },
                         { label: '🖼️ View Screenshot', url: `/snapshot/screenshot?sid=${snapshotData.snapshotId}` }
                     ];
                 }
@@ -820,7 +988,7 @@
 
                 const actionButtons = document.getElementById('action-buttons');
                 actionButtons.innerHTML = '';
-                
+
                 actions.forEach(action => {
                     const btn = document.createElement('button');
                     btn.className = 'btn-secondary';
@@ -831,9 +999,56 @@
 
             } catch (error) {
                 loading.style.display = 'none';
-                alert('Error: ' + error.message);
+                Toast.error('Error: ' + error.message);
             }
         });
+
+        // Toast notification system
+        const Toast = {
+            show(message, type = 'info', duration = 4000) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.textContent = message;
+                
+                // Inline styles for toast
+                Object.assign(toast.style, {
+                    background: type === 'success' ? 'rgba(16, 185, 129, 0.1)' :
+                               type === 'error' ? 'rgba(239, 68, 68, 0.1)' :
+                               type === 'warning' ? 'rgba(245, 158, 11, 0.1)' :
+                               'rgba(59, 130, 246, 0.1)',
+                    border: `1px solid ${type === 'success' ? '#10b981' :
+                                        type === 'error' ? '#ef4444' :
+                                        type === 'warning' ? '#f59e0b' :
+                                        '#3b82f6'}`,
+                    color: type === 'success' ? '#86efac' :
+                           type === 'error' ? '#fca5a5' :
+                           type === 'warning' ? '#fcd34d' :
+                           '#93c5fd',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    marginBottom: '10px',
+                    animation: 'slideInRight 0.3s ease-out'
+                });
+                
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            },
+            success(msg) { this.show(msg, 'success'); },
+            error(msg) { this.show(msg, 'error', 5000); },
+            warning(msg) { this.show(msg, 'warning'); },
+            info(msg) { this.show(msg, 'info'); }
+        };
+
+        // Update error handling to use Toast
+        const originalAlert = window.alert;
+        window.alert = function(msg) {
+            Toast.error(msg);
+        };
 
         // Close modal on outside click
         window.onclick = (event) => {
@@ -842,6 +1057,17 @@
                 closeStats();
             }
         };
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            HistoryManager.renderQuickAccess();
+            Toast.info('Welcome to Headless-web! 🌐');
+        });
     </script>
 </body>
+
+</html>
+</script>
+</body>
+
 </html>
