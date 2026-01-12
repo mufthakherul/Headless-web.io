@@ -115,13 +115,28 @@ Internally, the controller uses multiple techniques (proxy rewrite, transcoding,
 These are example endpoints you can implement (adjust freely):
 
 ### Main Routes
-- `GET /` — Enhanced UI with dark mode and statistics
+- `GET /` — Enhanced UI with dark mode, history, bookmarks, and settings
 - `GET /live` — Live mode interactive viewer
 - `GET /health` — Health check with feature status
+
+### Frontend Features (v2.1.0)
+- 📜 **Browsing History** — Automatic tracking of visited URLs (with opt-out)
+- ⭐ **Bookmarks** — Save and organize favorite sites
+- ⚙️ **User Settings** — Customize behavior and preferences
+- 📤 **Export/Import** — Backup and restore your data (JSON format)
+- 🌙 **Dark Mode** — Theme persistence across sessions
+- 📊 **Statistics Dashboard** — Real-time server metrics and monitoring
 
 ### Session Management
 - `GET /go?url=...&mode=fast` — Create a session/tab
 - `GET /stats` — Server statistics and monitoring
+- `GET /sessions/list` — List all active sessions
+- `DELETE /sessions/:sessionId` — Delete a specific session
+- `POST /sessions/cleanup` — Clean up stale sessions
+
+### Cache Management
+- `GET /cache/stats` — Get cache statistics
+- `POST /cache/clear` — Clear response cache
 
 ### Browsing Modes
 - `GET /proxy?sid=...&url=...` — Proxy rewrite fetch (Fast Mode)
@@ -306,13 +321,25 @@ export REDIS_PORT=6379
 
 ### 🎨 Modern UI
 
-- ✅ Dark mode support
+- ✅ Dark mode support with persistence
 - ✅ Responsive design (mobile + desktop)
-- ✅ Real-time statistics
+- ✅ Real-time statistics dashboard
 - ✅ Visual mode selector
 - ✅ Progress indicators
 - ✅ Smooth animations
 - ✅ Chrome 75+ compatible
+- ✅ Browsing history tracking
+- ✅ Bookmarks/favorites management
+- ✅ Settings panel with preferences
+- ✅ Export/Import data functionality
+
+### ⚡ Performance Features
+
+- ✅ Session cleanup and timeout management
+- ✅ Response caching with LRU eviction
+- ✅ Automatic stale session cleanup
+- ✅ Performance metrics tracking
+- ✅ Memory usage monitoring
 
 ---
 

@@ -6,6 +6,50 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+#### HTML Files Moved to Root
+- **Moved `index.html` and `live.html` to root directory**: Better organization and accessibility
+- Updated server.js to serve HTML files from root directory
+- Fixed "Failed to load stats: Unexpected token '<'" error by proper routing
+
+#### Frontend Enhancement Features
+- **📜 Browsing History**: Automatic tracking of visited URLs with localStorage persistence
+  - View history with timestamps and modes
+  - Quick access to previously visited sites
+  - One-click bookmark from history
+  - Clear history functionality
+- **⭐ Bookmarks Management**: Save and organize favorite websites
+  - Add custom names to bookmarks
+  - Quick access from bookmarks panel
+  - Remove bookmarks functionality
+- **⚙️ User Settings Panel**: Customize application behavior
+  - Auto-save history preference
+  - Notification settings
+  - Theme preference storage
+- **📤 Export/Import Data**: Backup and restore user data
+  - Export browsing history, bookmarks, and settings as JSON
+  - Import data from previous exports
+  - Clear all data option with confirmation
+- **Enhanced Navigation Bar**: Added History, Bookmarks, and Settings buttons
+- **Improved Modal System**: Better modal management with outside-click closing
+
+#### Server-Side Enhancements
+- **Session Management API**:
+  - `GET /sessions/list` - List all active sessions with metadata
+  - `DELETE /sessions/:sessionId` - Delete specific sessions
+  - `POST /sessions/cleanup` - Manual cleanup of stale sessions
+- **Automatic Session Cleanup**: 
+  - Sessions expire after 30 minutes of inactivity
+  - Sessions auto-delete after 24 hours maximum age
+  - Cleanup runs every 5 minutes automatically
+- **Response Caching System**:
+  - LRU cache for static content responses
+  - Configurable cache size (default: 100 items)
+  - 5-minute TTL for cached responses
+  - `GET /cache/stats` - View cache statistics
+  - `POST /cache/clear` - Clear response cache
+- **Enhanced Health Endpoint**: Added cache size and session count to health check
+- **Performance Monitoring**: Track session ages, idle times, and cache efficiency
+
 #### Project Restructuring
 - **New `/web` directory**: Moved HTML files from `/public` to `/web` for better organization
 - Separated web assets from other files for cleaner codebase structure
