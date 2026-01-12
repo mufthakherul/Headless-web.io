@@ -18,7 +18,7 @@ const AI_PROVIDERS = {
     gemini: {
         name: 'Google Gemini',
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-        models: ['gemini-pro', 'gemini-pro-vision'],
+        models: ['gemini-3-flash-preview', 'gemini-pro', 'gemini-pro-vision'],
         requiresKey: true
     },
     openai: {
@@ -71,13 +71,28 @@ class AIManager {
      * Get available providers
      */
     getAvailableProviders() {
-        return Object.entries(AI_PROVIDERS)
+        const availableProviders = Object.entries(AI_PROVIDERS)
             .filter(([key]) => this.isProviderAvailable(key))
             .map(([key, config]) => ({
                 id: key,
                 name: config.name,
-                models: config.models
+                models: config.models,
+                available: true,
+                default: key === 'gemini' // Gemini as default
             }));
+
+        // If no providers available, show all as unavailable
+        if (availableProviders.length === 0) {
+            return Object.entries(AI_PROVIDERS).map(([key, config]) => ({
+                id: key,
+                name: config.name,
+                models: config.models,
+                available: false,
+                default: false
+            }));
+        }
+
+        return availableProviders;
     }
 
     /**

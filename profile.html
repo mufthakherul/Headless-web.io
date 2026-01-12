@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Headless-web - User Profile</title>
+    <meta name="description" content="Manage your account, view statistics, and customize settings">
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg-main: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #1f2937;
+            --bg-secondary: #111827;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --border: #374151;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            text-decoration: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .header-nav a,
+        .header-btn {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .header-nav a:hover,
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: var(--bg-main);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px var(--shadow);
+            padding: 30px;
+            height: fit-content;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+            margin: 0 auto 20px;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .profile-avatar:hover {
+            transform: scale(1.05);
+        }
+
+        .avatar-upload {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: var(--primary);
+            border-radius: 50%;
+            padding: 8px;
+            font-size: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .profile-name {
+            text-align: center;
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .profile-email {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-menu {
+            margin-top: 20px;
+        }
+
+        .menu-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .menu-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .menu-item.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .main-content {
+            background: var(--bg-main);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px var(--shadow);
+            padding: 30px;
+            min-height: 500px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: var(--bg-main);
+        }
+
+        .form-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .activity-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px;
+        }
+
+        .activity-details {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .settings-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .setting-info h4 {
+            color: var(--text-primary);
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .setting-info p {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: var(--border);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: var(--primary);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        .api-keys-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .api-key-item {
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .api-key-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .api-key-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .status-inactive {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        @media (max-width: 968px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                padding: 20px;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .header-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <a href="/" class="logo">
+            <span>🌐</span> Headless-web
+        </a>
+        <div class="header-nav">
+            <a href="/">🏠 Home</a>
+            <a href="/ai-chat.html">💬 AI Chat</a>
+            <a href="/downloader.html">📥 Download</a>
+            <button class="header-btn" onclick="toggleTheme()">
+                <span id="theme-icon">🌙</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="profile-avatar" onclick="uploadAvatar()">
+                <span id="avatar-emoji">👤</span>
+                <div class="avatar-upload">📷</div>
+            </div>
+            <input type="file" id="avatar-input" accept="image/*" style="display: none;">
+
+            <div class="profile-name" id="user-name">Loading...</div>
+            <div class="profile-email" id="user-email">Loading...</div>
+
+            <div class="profile-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-sessions">0</div>
+                    <div class="stat-label">Sessions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-messages">0</div>
+                    <div class="stat-label">AI Messages</div>
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="menu-item active" onclick="showSection('overview')">
+                    <span>📊</span> Overview
+                </div>
+                <div class="menu-item" onclick="showSection('account')">
+                    <span>👤</span> Account Settings
+                </div>
+                <div class="menu-item" onclick="showSection('security')">
+                    <span>🔒</span> Security
+                </div>
+                <div class="menu-item" onclick="showSection('activity')">
+                    <span>📈</span> Activity
+                </div>
+                <div class="menu-item" onclick="showSection('api')">
+                    <span>🔑</span> API Keys
+                </div>
+                <div class="menu-item" onclick="showSection('preferences')">
+                    <span>⚙️</span> Preferences
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Overview Section -->
+            <div id="overview" class="section active">
+                <h2 class="section-title">📊 Account Overview</h2>
+
+                <div class="stats-grid"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                    <div class="stat-card" style="padding: 20px;">
+                        <div class="stat-value" id="total-browses">0</div>
+                        <div class="stat-label">Total Browses</div>
+                    </div>
+                    <div class="stat-card" style="padding: 20px;">
+                        <div class="stat-value" id="total-downloads">0</div>
+                        <div class="stat-label">Downloads</div>
+                    </div>
+                    <div class="stat-card" style="padding: 20px;">
+                        <div class="stat-value" id="total-ai-chats">0</div>
+                        <div class="stat-label">AI Conversations</div>
+                    </div>
+                    <div class="stat-card" style="padding: 20px;">
+                        <div class="stat-value" id="account-age">0d</div>
+                        <div class="stat-label">Member Since</div>
+                    </div>
+                </div>
+
+                <h3 style="color: var(--text-primary); margin-bottom: 15px;">🚀 Quick Actions</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <button class="btn btn-primary" onclick="window.location.href='/'">
+                        🌐 Start Browsing
+                    </button>
+                    <button class="btn btn-primary" onclick="window.location.href='/ai-chat.html'">
+                        💬 Chat with AI
+                    </button>
+                    <button class="btn btn-primary" onclick="window.location.href='/downloader.html'">
+                        📥 Download Media
+                    </button>
+                    <button class="btn btn-secondary" onclick="showSection('api')">
+                        🔑 Manage API Keys
+                    </button>
+                </div>
+            </div>
+
+            <!-- Account Settings Section -->
+            <div id="account" class="section">
+                <h2 class="section-title">👤 Account Settings</h2>
+
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" class="form-input" id="account-name" placeholder="Enter your name">
+                </div>
+
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" class="form-input" id="account-email" disabled>
+                </div>
+
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" class="form-input" id="account-username" placeholder="Enter username">
+                </div>
+
+                <div class="form-group">
+                    <label>Bio</label>
+                    <textarea class="form-input" id="account-bio" rows="4"
+                        placeholder="Tell us about yourself..."></textarea>
+                </div>
+
+                <button class="btn btn-primary" onclick="updateAccount()">💾 Save Changes</button>
+            </div>
+
+            <!-- Security Section -->
+            <div id="security" class="section">
+                <h2 class="section-title">🔒 Security Settings</h2>
+
+                <h3 style="color: var(--text-primary); margin-bottom: 15px;">Change Password</h3>
+                <div class="form-group">
+                    <label>Current Password</label>
+                    <input type="password" class="form-input" id="current-password">
+                </div>
+
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" class="form-input" id="new-password">
+                </div>
+
+                <div class="form-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" class="form-input" id="confirm-password">
+                </div>
+
+                <button class="btn btn-primary" onclick="changePassword()">🔑 Update Password</button>
+
+                <hr style="margin: 30px 0; border: 1px solid var(--border);">
+
+                <h3 style="color: var(--text-primary); margin-bottom: 15px;">🗑️ Danger Zone</h3>
+                <div
+                    style="padding: 20px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 2px solid var(--error);">
+                    <h4 style="color: var(--error); margin-bottom: 10px;">Delete Account</h4>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 15px;">
+                        Once you delete your account, there is no going back. Please be certain.
+                    </p>
+                    <button class="btn btn-danger" onclick="confirmDeleteAccount()">Delete My Account</button>
+                </div>
+            </div>
+
+            <!-- Activity Section -->
+            <div id="activity" class="section">
+                <h2 class="section-title">📈 Recent Activity</h2>
+
+                <div class="activity-list" id="activity-list">
+                    <div class="activity-item">
+                        <div class="activity-icon">🌐</div>
+                        <div class="activity-details">
+                            <div class="activity-title">Browsed example.com</div>
+                            <div class="activity-time">2 hours ago</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">💬</div>
+                        <div class="activity-details">
+                            <div class="activity-title">Chat session with Gemini</div>
+                            <div class="activity-time">5 hours ago</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">📥</div>
+                        <div class="activity-details">
+                            <div class="activity-title">Downloaded video content</div>
+                            <div class="activity-time">1 day ago</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary" onclick="loadMoreActivity()" style="margin-top: 20px;">
+                    Load More Activity
+                </button>
+            </div>
+
+            <!-- API Keys Section -->
+            <div id="api" class="section">
+                <h2 class="section-title">🔑 API Keys Configuration</h2>
+
+                <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
+                    Configure your AI provider API keys. These are stored securely on the server.
+                </p>
+
+                <div class="api-keys-grid" id="api-keys-grid">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Preferences Section -->
+            <div id="preferences" class="section">
+                <h2 class="section-title">⚙️ Preferences</h2>
+
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Dark Mode</h4>
+                            <p>Enable dark theme for better visibility at night</p>
+                        </div>
+                        <div class="toggle-switch" id="toggle-dark-mode" onclick="toggleSetting(this, 'darkMode')">
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Email Notifications</h4>
+                            <p>Receive updates about your account activity</p>
+                        </div>
+                        <div class="toggle-switch" id="toggle-email-notif"
+                            onclick="toggleSetting(this, 'emailNotifications')"></div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Auto-save History</h4>
+                            <p>Automatically save browsing and chat history</p>
+                        </div>
+                        <div class="toggle-switch active" id="toggle-auto-save"
+                            onclick="toggleSetting(this, 'autoSave')"></div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Show Statistics</h4>
+                            <p>Display usage statistics on dashboard</p>
+                        </div>
+                        <div class="toggle-switch active" id="toggle-stats" onclick="toggleSetting(this, 'showStats')">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="savePreferences()" style="margin-top: 20px;">💾 Save
+                    Preferences</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // Load theme
+        window.addEventListener('load', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('theme-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+            if (savedTheme === 'dark') {
+                document.getElementById('toggle-dark-mode').classList.add('active');
+            }
+
+            loadUserData();
+            loadAPIKeysStatus();
+        });
+
+        // Show section
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Toggle setting
+        function toggleSetting(element, setting) {
+            element.classList.toggle('active');
+            const isActive = element.classList.contains('active');
+
+            if (setting === 'darkMode') {
+                toggleTheme();
+            }
+
+            showNotification(`${setting} ${isActive ? 'enabled' : 'disabled'}`, 'success');
+        }
+
+        // Load user data
+        async function loadUserData() {
+            try {
+                const userData = JSON.parse(localStorage.getItem('user') || '{}');
+
+                document.getElementById('user-name').textContent = userData.name || userData.email || 'User';
+                document.getElementById('user-email').textContent = userData.email || 'user@example.com';
+                document.getElementById('account-email').value = userData.email || '';
+                document.getElementById('account-name').value = userData.name || '';
+
+                // Generate random stats for demo
+                document.getElementById('stat-sessions').textContent = Math.floor(Math.random() * 50) + 10;
+                document.getElementById('stat-messages').textContent = Math.floor(Math.random() * 200) + 50;
+                document.getElementById('total-browses').textContent = Math.floor(Math.random() * 100) + 20;
+                document.getElementById('total-downloads').textContent = Math.floor(Math.random() * 50) + 5;
+                document.getElementById('total-ai-chats').textContent = Math.floor(Math.random() * 80) + 15;
+                document.getElementById('account-age').textContent = Math.floor(Math.random() * 30) + 1 + 'd';
+
+                // Set avatar emoji
+                const emojis = ['👤', '😊', '🚀', '⭐', '🎯', '💡', '🌟', '🔥'];
+                document.getElementById('avatar-emoji').textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            } catch (error) {
+                console.error('Failed to load user data:', error);
+            }
+        }
+
+        // Load API keys status
+        async function loadAPIKeysStatus() {
+            try {
+                const response = await fetch('/ai/providers');
+                const data = await response.json();
+
+                const container = document.getElementById('api-keys-grid');
+                container.innerHTML = '';
+
+                const providers = [
+                    { id: 'gemini', name: 'Google Gemini', icon: '🔷' },
+                    { id: 'openai', name: 'OpenAI GPT', icon: '🟢' },
+                    { id: 'grok', name: 'xAI Grok', icon: '⚡' },
+                    { id: 'deepseek', name: 'DeepSeek', icon: '🔍' },
+                    { id: 'copilot', name: 'GitHub Copilot', icon: '🤖' }
+                ];
+
+                providers.forEach(provider => {
+                    const isActive = data.providers?.some(p => p.id === provider.id && p.available);
+
+                    const item = document.createElement('div');
+                    item.className = 'api-key-item';
+                    item.innerHTML = `
+                        <div>
+                            <span style="font-size: 20px; margin-right: 10px;">${provider.icon}</span>
+                            <span class="api-key-name">${provider.name}</span>
+                        </div>
+                        <div class="api-key-status">
+                            <span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">
+                                ${isActive ? '✓ Active' : '✗ Not Configured'}
+                            </span>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Failed to load API keys:', error);
+            }
+        }
+
+        // Update account
+        async function updateAccount() {
+            const name = document.getElementById('account-name').value;
+            const username = document.getElementById('account-username').value;
+            const bio = document.getElementById('account-bio').value;
+
+            // Update localStorage
+            const userData = JSON.parse(localStorage.getItem('user') || '{}');
+            userData.name = name;
+            userData.username = username;
+            userData.bio = bio;
+            localStorage.setItem('user', JSON.stringify(userData));
+
+            document.getElementById('user-name').textContent = name || userData.email;
+
+            showNotification('Account updated successfully!', 'success');
+        }
+
+        // Change password
+        async function changePassword() {
+            const current = document.getElementById('current-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirm = document.getElementById('confirm-password').value;
+
+            if (!current || !newPass || !confirm) {
+                showNotification('Please fill all fields', 'error');
+                return;
+            }
+
+            if (newPass !== confirm) {
+                showNotification('Passwords do not match', 'error');
+                return;
+            }
+
+            if (newPass.length < 8) {
+                showNotification('Password must be at least 8 characters', 'error');
+                return;
+            }
+
+            // Here you would make API call to change password
+            showNotification('Password updated successfully!', 'success');
+
+            // Clear fields
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+        }
+
+        // Delete account confirmation
+        function confirmDeleteAccount() {
+            if (confirm('Are you absolutely sure? This action cannot be undone!')) {
+                if (confirm('Final confirmation: Delete your account permanently?')) {
+                    // Here you would make API call to delete account
+                    showNotification('Account deletion initiated...', 'success');
+                    setTimeout(() => {
+                        localStorage.clear();
+                        window.location.href = '/login.html';
+                    }, 2000);
+                }
+            }
+        }
+
+        // Save preferences
+        function savePreferences() {
+            const preferences = {
+                darkMode: document.getElementById('toggle-dark-mode').classList.contains('active'),
+                emailNotifications: document.getElementById('toggle-email-notif').classList.contains('active'),
+                autoSave: document.getElementById('toggle-auto-save').classList.contains('active'),
+                showStats: document.getElementById('toggle-stats').classList.contains('active')
+            };
+
+            localStorage.setItem('preferences', JSON.stringify(preferences));
+            showNotification('Preferences saved successfully!', 'success');
+        }
+
+        // Upload avatar
+        function uploadAvatar() {
+            document.getElementById('avatar-input').click();
+        }
+
+        document.getElementById('avatar-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('avatar-emoji').textContent = '📸';
+                    showNotification('Avatar uploaded! (Demo mode)', 'success');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Load more activity
+        function loadMoreActivity() {
+            showNotification('Loading more activity...', 'info');
+        }
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--error)' : 'var(--primary)'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+                font-size: 14px;
+                max-width: 350px;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Add animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>
