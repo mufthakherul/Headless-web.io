@@ -803,19 +803,22 @@
 
                 if (selectedMode === 'fast') {
                     finalUrl = `/proxy?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '🔗 Open in New Tab', url: finalUrl }
+                        { label: '🔗 Open Again', url: finalUrl }
                     ];
                 } else if (selectedMode === 'reader') {
                     finalUrl = `/reader?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '📖 Open Reader', url: finalUrl },
+                        { label: '📖 Open Reader Again', url: finalUrl },
                         { label: '📄 Download PDF', url: `/pdf/generate?url=${encodeURIComponent(url)}` }
                     ];
                 } else if (selectedMode === 'text') {
                     finalUrl = `/text?sid=${sid}&url=${encodeURIComponent(url)}`;
+                    window.open(finalUrl, '_blank');
                     actions = [
-                        { label: '📝 Open Text-only', url: finalUrl }
+                        { label: '📝 Open Text-only Again', url: finalUrl }
                     ];
                 } else if (selectedMode === 'live') {
                     // Start live session
