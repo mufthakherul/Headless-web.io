@@ -246,9 +246,9 @@
         </div>
 
         <div class="content">
-            <div class="warning">
-                <strong>⚠️ Implementation Status: Scaffold Only</strong>
-                This is a placeholder UI. Route handlers return mock responses. Real browsing features (proxy rewrite, Playwright integration, remote desktop) are not yet implemented.
+            <div class="warning" style="background: #4caf50; border-color: #45a049;">
+                <strong>✅ Features Now Available!</strong>
+                Fast Mode (Proxy), Reader Mode, and Text-only Mode are now working! Live and Desktop modes coming soon.
             </div>
 
             <form id="browseForm">
@@ -353,11 +353,48 @@
                 const response = await fetch(`/go?url=${encodeURIComponent(url)}&mode=${encodeURIComponent(mode)}&auto=${autoMode}`);
                 const data = await response.json();
                 
-                resultContent.textContent = JSON.stringify(data, null, 2);
-                resultDiv.classList.add('show');
-                
-                // If auto mode is enabled and we got a session, could fetch additional info
-                // (in a real implementation)
+                if (data.success && data.sessionId) {
+                    // Session created successfully, now redirect to the appropriate mode
+                    const sid = data.sessionId;
+                    const targetUrl = encodeURIComponent(url);
+                    
+                    // Determine which endpoint to use based on mode
+                    let endpoint;
+                    switch(mode) {
+                        case 'fast':
+                        case 'fast-plus':
+                            endpoint = `/proxy?sid=${sid}&url=${targetUrl}`;
+                            break;
+                        case 'reader':
+                            endpoint = `/reader?sid=${sid}&url=${targetUrl}`;
+                            break;
+                        case 'text':
+                            endpoint = `/text?sid=${sid}&url=${targetUrl}`;
+                            break;
+                        default:
+                            // Other modes not yet implemented
+                            resultContent.textContent = JSON.stringify({
+                                message: `${mode} mode is not yet implemented. Try Fast, Reader, or Text-only modes.`,
+                                session: data
+                            }, null, 2);
+                            resultDiv.classList.add('show');
+                            return;
+                    }
+                    
+                    // Open in new window/tab
+                    window.open(endpoint, '_blank');
+                    
+                    resultContent.textContent = JSON.stringify({
+                        success: true,
+                        message: 'Opening in new tab...',
+                        sessionId: sid,
+                        mode: mode
+                    }, null, 2);
+                    resultDiv.classList.add('show');
+                } else {
+                    resultContent.textContent = JSON.stringify(data, null, 2);
+                    resultDiv.classList.add('show');
+                }
                 
             } catch (error) {
                 resultContent.textContent = JSON.stringify({ error: error.message }, null, 2);
