@@ -50,7 +50,7 @@ async function fetchAndRewrite(targetUrl, sessionId, baseProxyPath = '/proxy') {
 
     // Helper function to rewrite URLs
     const rewriteUrl = (url) => {
-      if (!url || url.startsWith('data:') || url.startsWith('javascript:') || url.startsWith('#')) {
+      if (!url || url.startsWith('data:') || url.startsWith('javascript:') || url.startsWith('vbscript:') || url.startsWith('#')) {
         return url;
       }
 
