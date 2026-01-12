@@ -1,0 +1,33 @@
+# Dependencies (will be installed by Vercel)
+node_modules
+
+# Tests
+tests
+*.test.js
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Git files
+.git
+.gitignore
+.github
+
+# Logs
+logs
+*.log
+
+# Runtime data
+snapshots
+cookies
+tmp
+temp
+
+# Old files
+public
+
+# Development files
+.env.local
+.DS_Store
