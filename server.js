@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,9 +49,7 @@ const RATE_LIMIT_CONFIG = {
 const sessions = new Map();
 
 function generateSessionId() {
-  // TODO: Use cryptographically secure random generation
-  // Using crypto for better security than Math.random()
-  const crypto = require('crypto');
+  // Using crypto.randomBytes() for cryptographically secure session IDs
   return 'session_' + Date.now() + '_' + crypto.randomBytes(6).toString('hex');
 }
 
