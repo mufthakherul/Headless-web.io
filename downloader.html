@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Headless-web - Media Downloader & Web Scraper</title>
+    <meta name="description" content="Download YouTube videos, images, scrape websites">
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg-main: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #1f2937;
+            --bg-secondary: #111827;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --border: #374151;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            text-decoration: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .header-nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+        .header-nav a:hover {
+            opacity: 0.8;
+        }
+
+        .logout-btn,
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover,
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            background: var(--bg-main);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            margin-bottom: -2px;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+            background: var(--bg-main);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: var(--bg-main);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .form-section {
+            margin-bottom: 40px;
+        }
+
+        .form-section h2 {
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: var(--bg-main);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--border);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .message.success {
+            display: block;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .message.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+            border: 1px solid var(--error);
+        }
+
+        .message.info {
+            display: block;
+            background: rgba(102, 126, 234, 0.1);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .progress-container {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .results {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .result-item {
+            padding: 15px;
+            background: var(--bg-main);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .result-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .result-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .result-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .download-history {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .download-history h3 {
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+
+        .history-item {
+            padding: 12px;
+            background: var(--bg-main);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .history-item-info {
+            flex: 1;
+        }
+
+        .history-item-type {
+            display: inline-block;
+            padding: 4px 8px;
+            background: var(--primary);
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .result-preview {
+                max-height: 150px;
+            }
+
+            .history-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="/" class="logo">
+                <span>🌐</span> Headless-web
+            </a>
+        </div>
+        <div class="header-nav">
+            <a href="/">Browse</a>
+            <a href="/ai-chat.html">AI Chat</a>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="theme-icon">🌙</span>
+            </button>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('downloader')">⬇️ Downloader</button>
+            <button class="tab" onclick="switchTab('scraper')">🕷️ Web Scraper</button>
+            <button class="tab" onclick="switchTab('history')">📊 History</button>
+        </div>
+
+        <!-- Downloader Tab -->
+        <div id="downloader" class="tab-content active">
+            <div class="form-section">
+                <h2>Download Media</h2>
+                <div id="dl-message" class="message"></div>
+
+                <div class="form-group">
+                    <label>URL</label>
+                    <input type="url" id="dl-url"
+                        placeholder="https://youtube.com/watch?v=... or https://example.com/image.jpg">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="dl-type" onchange="updateFormatOptions()">
+                            <option value="youtube-video">YouTube Video</option>
+                            <option value="youtube-audio">YouTube Audio</option>
+                            <option value="image">Image</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label id="quality-label">Quality</label>
+                        <select id="dl-quality">
+                            <option value="highest">Highest</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" id="dl-btn" onclick="downloadMedia()">
+                        <span class="btn-text">Start Download</span>
+                    </button>
+                </div>
+
+                <div class="progress-container" id="dl-progress">
+                    <div class="progress-label">
+                        <span>Downloading...</span>
+                        <span id="dl-percent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="dl-fill"></div>
+                    </div>
+                </div>
+
+                <div class="results" id="dl-results">
+                    <div class="result-item">
+                        <div class="result-title" id="dl-result-title">Download Complete</div>
+                        <div class="result-meta" id="dl-result-meta"></div>
+                        <img id="dl-result-preview" class="result-preview" style="display: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scraper Tab -->
+        <div id="scraper" class="tab-content">
+            <div class="form-section">
+                <h2>Web Scraper</h2>
+                <div id="scrape-message" class="message"></div>
+
+                <div class="form-group">
+                    <label>Website URL</label>
+                    <input type="url" id="scrape-url" placeholder="https://example.com">
+                </div>
+
+                <div class="form-group">
+                    <label>Extract Options</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" id="extract-text" checked> Text
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" id="extract-images" checked> Images
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" id="extract-links" checked> Links
+                        </label>
+                        <label style="display: flex; align-items: center; font-weight: normal;">
+                            <input type="checkbox" id="extract-metadata" checked> Metadata
+                        </label>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" id="scrape-btn" onclick="scrapeWebsite()">
+                        <span class="btn-text">Scrape Website</span>
+                    </button>
+                </div>
+
+                <div class="results" id="scrape-results">
+                    <div class="result-item">
+                        <div class="result-title" id="scrape-title">Scraping Complete</div>
+                        <div id="scrape-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="history" class="tab-content">
+            <div class="form-section">
+                <h2>Download History</h2>
+                <div id="history-message" class="message"></div>
+                <div class="download-history" id="history-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token');
+        let user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            document.getElementById('theme-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // Load saved theme
+        window.addEventListener('load', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('theme-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+            if (token) {
+                loadDownloadHistory();
+            }
+        });
+
+        // Tab switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Update format options based on type
+        function updateFormatOptions() {
+            const type = document.getElementById('dl-type').value;
+            const qualityLabel = document.getElementById('quality-label');
+            const qualitySelect = document.getElementById('dl-quality');
+
+            if (type === 'image') {
+                qualityLabel.style.display = 'none';
+                qualitySelect.style.display = 'none';
+            } else {
+                qualityLabel.style.display = 'block';
+                qualitySelect.style.display = 'block';
+            }
+        }
+
+        // Show message
+        function showMessage(id, text, type) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = `message ${type}`;
+            el.style.display = 'block';
+        }
+
+        // Download media
+        async function downloadMedia() {
+            const url = document.getElementById('dl-url').value;
+
+            if (!url) {
+                showMessage('dl-message', 'Please enter a URL', 'error');
+                return;
+            }
+
+            const type = document.getElementById('dl-type').value;
+            const quality = document.getElementById('dl-quality').value;
+
+            const btn = document.getElementById('dl-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>';
+
+            try {
+                const endpoint = type === 'image' ? '/download/image' : '/download/youtube';
+                const body = type === 'image'
+                    ? { url }
+                    : { url, format: type === 'youtube-audio' ? 'audio' : 'video', quality };
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('dl-message', '✓ Download started!', 'success');
+
+                    document.getElementById('dl-result-title').textContent = data.filename;
+                    document.getElementById('dl-result-meta').textContent = `Size: ${formatBytes(data.size)}`;
+
+                    if (type === 'image') {
+                        const preview = document.getElementById('dl-result-preview');
+                        preview.src = url;
+                        preview.style.display = 'block';
+                    }
+
+                    document.getElementById('dl-results').classList.add('active');
+                } else {
+                    showMessage('dl-message', 'Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('dl-message', 'Network error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="btn-text">Start Download</span>';
+            }
+        }
+
+        // Scrape website
+        async function scrapeWebsite() {
+            const url = document.getElementById('scrape-url').value;
+
+            if (!url) {
+                showMessage('scrape-message', 'Please enter a URL', 'error');
+                return;
+            }
+
+            const options = {
+                extractText: document.getElementById('extract-text').checked,
+                extractImages: document.getElementById('extract-images').checked,
+                extractLinks: document.getElementById('extract-links').checked,
+                extractMetadata: document.getElementById('extract-metadata').checked
+            };
+
+            const btn = document.getElementById('scrape-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>';
+
+            try {
+                const response = await fetch('/scrape', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, options })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('scrape-message', '✓ Scraping complete!', 'success');
+
+                    let html = `<h3>${data.data.title}</h3>`;
+
+                    if (data.data.metadata?.description) {
+                        html += `<p><strong>Description:</strong> ${data.data.metadata.description}</p>`;
+                    }
+
+                    if (data.data.images?.length) {
+                        html += `<p><strong>Images (${data.data.images.length}):</strong></p>`;
+                        html += data.data.images.slice(0, 5).map(img =>
+                            `<img src="${img.url}" alt="${img.alt}" class="result-preview" style="max-width: 150px; margin: 5px;">`
+                        ).join('');
+                    }
+
+                    if (data.data.links?.length) {
+                        html += `<p><strong>Links (${data.data.links.length} found):</strong></p>`;
+                        html += '<ul style="margin-left: 20px;">' + data.data.links.slice(0, 5).map(link =>
+                            `<li><a href="${link.url}" target="_blank">${link.text || link.url}</a></li>`
+                        ).join('') + '</ul>';
+                    }
+
+                    document.getElementById('scrape-title').textContent = data.data.title || 'Scraping Complete';
+                    document.getElementById('scrape-content').innerHTML = html;
+                    document.getElementById('scrape-results').classList.add('active');
+                } else {
+                    showMessage('scrape-message', 'Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('scrape-message', 'Network error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="btn-text">Scrape Website</span>';
+            }
+        }
+
+        // Load download history
+        async function loadDownloadHistory() {
+            try {
+                const response = await fetch('/download/history?limit=20', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.history.length > 0) {
+                    let html = '';
+                    data.history.forEach(item => {
+                        const date = new Date(item.created_at).toLocaleDateString();
+                        html += `
+                            <div class="history-item">
+                                <div class="history-item-info">
+                                    <div class="history-item-type">${item.type}</div>
+                                    <div><strong>${item.filename}</strong></div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">
+                                        ${formatBytes(item.size_bytes)} • ${date}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('history-list').innerHTML = html;
+                } else {
+                    document.getElementById('history-list').innerHTML = '<p>No download history yet</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load history:', error);
+            }
+        }
+
+        // Format bytes
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Logout
+        function logout() {
+            fetch('/auth/logout', { method: 'POST' });
+            localStorage.removeItem('token');
+            localStorage.removeItem('sessionId');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+
+</html>

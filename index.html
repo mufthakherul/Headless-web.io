@@ -527,12 +527,17 @@
     <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
 
     <nav class="nav">
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
-            <span id="theme-icon">🌙</span>
-        </button>
-        <button class="stats-btn" onclick="showStats()">
-            📊 Stats
-        </button>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+                <span id="theme-icon">🌙</span>
+            </button>
+            <button class="stats-btn" onclick="showStats()">
+                📊 Stats
+            </button>
+        </div>
+        <div id="auth-nav" style="display: flex; gap: 10px;">
+            <a href="/login.html" class="stats-btn" style="text-decoration: none;">🔐 Login</a>
+        </div>
     </nav>
 
     <div class="container">
@@ -546,6 +551,9 @@
                     <span class="badge">🎮 Interactive</span>
                     <span class="badge">📸 Snapshot</span>
                     <span class="badge">📄 PDF Export</span>
+                    <span class="badge">🤖 AI Chat</span>
+                    <span class="badge">🕷️ Web Scraper</span>
+                    <span class="badge">⬇️ Media DL</span>
                 </div>
             </div>
         </div>
@@ -687,6 +695,41 @@
 
     <script>
         let selectedMode = 'fast';
+
+        // Initialize authentication
+        function initializeAuth() {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+            const authNav = document.getElementById('auth-nav');
+
+            if (token && user) {
+                // User is logged in
+                authNav.innerHTML = `
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <span class="stats-btn" style="background: transparent; box-shadow: none; padding: 0;">👤 ${user.email}</span>
+                        <a href="/ai-chat.html" class="stats-btn" style="text-decoration: none;">🤖 AI Chat</a>
+                        <a href="/downloader.html" class="stats-btn" style="text-decoration: none;">⬇️ Download</a>
+                        <button class="stats-btn" onclick="logout()" style="background: #ef4444;">Logout</button>
+                    </div>
+                `;
+            } else {
+                // User is not logged in
+                authNav.innerHTML = `
+                    <a href="/login.html" class="stats-btn" style="text-decoration: none;">🔐 Login</a>
+                `;
+            }
+        }
+
+        function logout() {
+            fetch('/auth/logout', { method: 'POST' });
+            localStorage.removeItem('token');
+            localStorage.removeItem('sessionId');
+            localStorage.removeItem('user');
+            window.location.reload();
+        }
+
+        // Call on page load
+        window.addEventListener('load', initializeAuth);
 
         // Theme toggle
         function toggleTheme() {
